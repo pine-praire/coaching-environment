@@ -14,11 +14,13 @@ import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as ProcrastinationRouteImport } from './routes/procrastination'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as CommRouteImport } from './routes/comm'
 import { Route as BingoRouteImport } from './routes/bingo'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ResultIdRouteImport } from './routes/result.$id'
+import { Route as AdminCommunicationRouteImport } from './routes/admin_.communication'
 
 const TestRoute = TestRouteImport.update({
   id: '/test',
@@ -43,6 +45,11 @@ const PrivacyRoute = PrivacyRouteImport.update({
 const DashboardRoute = DashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CommRoute = CommRouteImport.update({
+  id: '/comm',
+  path: '/comm',
   getParentRoute: () => rootRouteImport,
 } as any)
 const BingoRoute = BingoRouteImport.update({
@@ -70,17 +77,24 @@ const ResultIdRoute = ResultIdRouteImport.update({
   path: '/result/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminCommunicationRoute = AdminCommunicationRouteImport.update({
+  id: '/admin_/communication',
+  path: '/admin/communication',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/auth': typeof AuthRoute
   '/bingo': typeof BingoRoute
+  '/comm': typeof CommRoute
   '/dashboard': typeof DashboardRoute
   '/privacy': typeof PrivacyRoute
   '/procrastination': typeof ProcrastinationRoute
   '/reset-password': typeof ResetPasswordRoute
   '/test': typeof TestRoute
+  '/admin/communication': typeof AdminCommunicationRoute
   '/result/$id': typeof ResultIdRoute
 }
 export interface FileRoutesByTo {
@@ -88,11 +102,13 @@ export interface FileRoutesByTo {
   '/admin': typeof AdminRoute
   '/auth': typeof AuthRoute
   '/bingo': typeof BingoRoute
+  '/comm': typeof CommRoute
   '/dashboard': typeof DashboardRoute
   '/privacy': typeof PrivacyRoute
   '/procrastination': typeof ProcrastinationRoute
   '/reset-password': typeof ResetPasswordRoute
   '/test': typeof TestRoute
+  '/admin/communication': typeof AdminCommunicationRoute
   '/result/$id': typeof ResultIdRoute
 }
 export interface FileRoutesById {
@@ -101,11 +117,13 @@ export interface FileRoutesById {
   '/admin': typeof AdminRoute
   '/auth': typeof AuthRoute
   '/bingo': typeof BingoRoute
+  '/comm': typeof CommRoute
   '/dashboard': typeof DashboardRoute
   '/privacy': typeof PrivacyRoute
   '/procrastination': typeof ProcrastinationRoute
   '/reset-password': typeof ResetPasswordRoute
   '/test': typeof TestRoute
+  '/admin_/communication': typeof AdminCommunicationRoute
   '/result/$id': typeof ResultIdRoute
 }
 export interface FileRouteTypes {
@@ -115,11 +133,13 @@ export interface FileRouteTypes {
     | '/admin'
     | '/auth'
     | '/bingo'
+    | '/comm'
     | '/dashboard'
     | '/privacy'
     | '/procrastination'
     | '/reset-password'
     | '/test'
+    | '/admin/communication'
     | '/result/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -127,11 +147,13 @@ export interface FileRouteTypes {
     | '/admin'
     | '/auth'
     | '/bingo'
+    | '/comm'
     | '/dashboard'
     | '/privacy'
     | '/procrastination'
     | '/reset-password'
     | '/test'
+    | '/admin/communication'
     | '/result/$id'
   id:
     | '__root__'
@@ -139,11 +161,13 @@ export interface FileRouteTypes {
     | '/admin'
     | '/auth'
     | '/bingo'
+    | '/comm'
     | '/dashboard'
     | '/privacy'
     | '/procrastination'
     | '/reset-password'
     | '/test'
+    | '/admin_/communication'
     | '/result/$id'
   fileRoutesById: FileRoutesById
 }
@@ -152,11 +176,13 @@ export interface RootRouteChildren {
   AdminRoute: typeof AdminRoute
   AuthRoute: typeof AuthRoute
   BingoRoute: typeof BingoRoute
+  CommRoute: typeof CommRoute
   DashboardRoute: typeof DashboardRoute
   PrivacyRoute: typeof PrivacyRoute
   ProcrastinationRoute: typeof ProcrastinationRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   TestRoute: typeof TestRoute
+  AdminCommunicationRoute: typeof AdminCommunicationRoute
   ResultIdRoute: typeof ResultIdRoute
 }
 
@@ -197,6 +223,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/comm': {
+      id: '/comm'
+      path: '/comm'
+      fullPath: '/comm'
+      preLoaderRoute: typeof CommRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/bingo': {
       id: '/bingo'
       path: '/bingo'
@@ -232,6 +265,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ResultIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin_/communication': {
+      id: '/admin_/communication'
+      path: '/admin/communication'
+      fullPath: '/admin/communication'
+      preLoaderRoute: typeof AdminCommunicationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -240,11 +280,13 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRoute: AdminRoute,
   AuthRoute: AuthRoute,
   BingoRoute: BingoRoute,
+  CommRoute: CommRoute,
   DashboardRoute: DashboardRoute,
   PrivacyRoute: PrivacyRoute,
   ProcrastinationRoute: ProcrastinationRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   TestRoute: TestRoute,
+  AdminCommunicationRoute: AdminCommunicationRoute,
   ResultIdRoute: ResultIdRoute,
 }
 export const routeTree = rootRouteImport

@@ -1,4 +1,10 @@
-import { Outlet, createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
+import {
+  Outlet,
+  createRootRoute,
+  HeadContent,
+  Scripts,
+  useRouterState,
+} from "@tanstack/react-router";
 import { AuthProvider } from "@/lib/auth";
 import { Toaster } from "@/components/ui/sonner";
 import { CookieBanner } from "@/components/cookie-banner";
@@ -20,13 +26,7 @@ export const Route = createRootRoute({
     links: [{ rel: "stylesheet", href: appCss }],
   }),
   shellComponent: RootShell,
-  component: () => (
-    <AuthProvider>
-      <Outlet />
-      <Toaster />
-      <CookieBanner />
-    </AuthProvider>
-  ),
+  component: RootComponent,
   notFoundComponent: () => (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="text-center">
@@ -40,9 +40,25 @@ export const Route = createRootRoute({
   ),
 });
 
-function RootShell({ children }: { children: React.ReactNode }) {
+// Анонимный опрос /comm: английский, без входа в Firebase Auth и без баннера cookies.
+const isCommSurvey = (pathname: string) => pathname === "/comm" || pathname.startsWith("/comm/");
+
+function RootComponent() {
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  if (isCommSurvey(pathname)) return <Outlet />;
   return (
-    <html lang="ru">
+    <AuthProvider>
+      <Outlet />
+      <Toaster />
+      <CookieBanner />
+    </AuthProvider>
+  );
+}
+
+function RootShell({ children }: { children: React.ReactNode }) {
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  return (
+    <html lang={isCommSurvey(pathname) ? "en" : "ru"}>
       <head>
         <HeadContent />
       </head>

@@ -137,9 +137,14 @@ function AdminPage() {
               <p className="text-sm text-muted-foreground">Пользователи и результаты</p>
             </div>
           </div>
-          <Link to="/dashboard" className="text-sm text-muted-foreground hover:text-foreground">
-            ← На главную
-          </Link>
+          <div className="flex items-center gap-4">
+            <Link to="/admin/communication" className="text-sm text-primary hover:underline">
+              Опрос Communication Debugger →
+            </Link>
+            <Link to="/dashboard" className="text-sm text-muted-foreground hover:text-foreground">
+              ← На главную
+            </Link>
+          </div>
         </div>
 
         {/* Stats */}

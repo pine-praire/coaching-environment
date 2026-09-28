@@ -54,6 +54,21 @@
 
 ---
 
+## Опрос Communication Debugger
+
+- `/comm` — анонимный опрос по коду, `/admin/communication` — дашборд (только админ).
+- Браузер **не ходит в Firestore**: всё через серверные функции в `src/functions/comm-*.functions.ts`,
+  которые работают через firebase-admin (`src/server/`). Правила Firestore для `comm_*` — `if false`.
+- Функции дашборда проверяют ID token и `user_roles` в каждом вызове (`requireAdmin`).
+- Ключ сервисного аккаунта: переменная `FIREBASE_SERVICE_ACCOUNT` (JSON целиком) в Vercel и `.env.local`.
+- Тексты опроса и дашборда вычитаны: не менять. Данные опроса — `src/lib/comm-survey.ts`,
+  расчёты — `src/lib/comm-analysis.ts`.
+- Не сохранять и не логировать ничего, что связывает ответ с человеком (IP, время, user agent, тела запросов).
+- Локально без ключа: `COMM_DEV_MEMORY=1 npm run dev`, код `DEVTEST`, данные в памяти.
+- Файлы из `src/server/` нельзя импортировать в клиентский код — сборка упадёт (import protection).
+
+---
+
 ## Правила
 
 - `vite.config.ts`: Lovable-конфиг уже подключает tanstackStart, react, tailwind, tsconfig-paths

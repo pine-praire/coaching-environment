@@ -64,5 +64,13 @@ service cloud.firestore {
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['score']);
       allow delete: if false;
     }
+
+    // Communication Debugger: доступ только через серверные функции (firebase-admin обходит правила).
+    match /comm_waves/{id} {
+      allow read, write: if false;
+    }
+    match /comm_responses/{id} {
+      allow read, write: if false;
+    }
   }
 }
