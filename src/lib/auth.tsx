@@ -32,9 +32,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setDisplayName(u.displayName);
         try {
           const roleSnap = await getDoc(doc(db, "user_roles", u.uid));
-          const adminFlag = roleSnap.exists() && roleSnap.data()?.role === "admin";
-          console.log("[auth] role doc exists:", roleSnap.exists(), "| data:", roleSnap.data(), "| isAdmin:", adminFlag);
-          setIsAdmin(adminFlag);
+          setIsAdmin(roleSnap.exists() && roleSnap.data()?.role === "admin");
         } catch (err) {
           console.error("[auth] failed to fetch user_roles:", err);
           setIsAdmin(false);
@@ -47,11 +45,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return unsub;
   }, []);
 
-  return (
-    <Ctx.Provider value={{ user, loading, displayName, isAdmin }}>
-      {children}
-    </Ctx.Provider>
-  );
+  return <Ctx.Provider value={{ user, loading, displayName, isAdmin }}>{children}</Ctx.Provider>;
 }
 
 export const useAuth = () => useContext(Ctx);
