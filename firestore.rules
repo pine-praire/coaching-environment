@@ -1,0 +1,68 @@
+rules_version = '2';
+
+// Правила для Firebase-проекта samovyvoz-685ae.
+// Деплой: firebase deploy --only firestore:rules --project samovyvoz-685ae
+// Файл заменяет правила проекта целиком: всё, что здесь не разрешено, запрещено.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isSelf(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    function isAdmin() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/user_roles/$(request.auth.uid))
+        && get(/databases/$(database)/documents/user_roles/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    function ownsExisting() {
+      return signedIn() && resource.data.userId == request.auth.uid;
+    }
+
+    function createsOwn() {
+      return signedIn() && request.resource.data.userId == request.auth.uid;
+    }
+
+    // Роли назначает и снимает только действующий админ.
+    // Первого админа создавать вручную в консоли Firebase: user_roles/<uid> = { role: "admin" }.
+    match /user_roles/{uid} {
+      allow read: if isSelf(uid) || isAdmin();
+      allow create, update: if isAdmin()
+        && request.resource.data.keys().hasOnly(['role'])
+        && request.resource.data.role == 'admin';
+      allow delete: if isAdmin();
+    }
+
+    match /users/{uid} {
+      allow read: if isSelf(uid) || isAdmin();
+      allow create, update: if isSelf(uid)
+        && request.resource.data.keys().hasOnly(['email', 'displayName', 'createdAt']);
+      allow delete: if false;
+    }
+
+    match /apgar_results/{id} {
+      allow read: if ownsExisting() || isAdmin();
+      allow create: if createsOwn();
+      allow update, delete: if false;
+    }
+
+    match /procrastination_results/{id} {
+      allow read: if ownsExisting() || isAdmin();
+      allow create: if createsOwn();
+      allow update, delete: if false;
+    }
+
+    match /bingo_results/{id} {
+      allow read: if ownsExisting() || isAdmin();
+      allow create: if createsOwn();
+      allow update: if ownsExisting()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['score']);
+      allow delete: if false;
+    }
+  }
+}
