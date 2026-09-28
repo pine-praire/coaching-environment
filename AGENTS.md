@@ -66,6 +66,9 @@
 - Не сохранять и не логировать ничего, что связывает ответ с человеком (IP, время, user agent, тела запросов).
 - Локально без ключа: `COMM_DEV_MEMORY=1 npm run dev`, код `DEVTEST`, данные в памяти.
 - Файлы из `src/server/` нельзя импортировать в клиентский код — сборка упадёт (import protection).
+- `firebase-admin` не бандлится: в `vite.config.ts` он `external`, а его файлы трассируются в
+  `node_modules` функции хуком `compiled` (nf3). Без этого на Vercel 500 (`__dirname is not defined`
+  в google-gax). Проверка перед деплоем: `npm run build`, затем `npx vite preview` и запрос к `/comm`.
 
 ---
 
