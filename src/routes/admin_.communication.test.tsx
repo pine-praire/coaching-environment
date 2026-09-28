@@ -152,4 +152,14 @@ describe("/admin/communication", () => {
       data: { name: "Team Beta", code: "ALPHA-OCT" },
     });
   });
+
+  it("copies the link and the code separately", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText } });
+    render(<Page />);
+    fireEvent.click(await screen.findByText("Copy link"));
+    expect(writeText).toHaveBeenLastCalledWith(`${window.location.origin}/comm`);
+    fireEvent.click(screen.getByText("Copy code"));
+    expect(writeText).toHaveBeenLastCalledWith("ALPHA-OCT");
+  });
 });

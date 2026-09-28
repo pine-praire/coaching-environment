@@ -267,18 +267,19 @@ function CommDashboard() {
     );
   };
 
-  const copyLink = () => {
-    if (!wave) return;
-    const text = `Survey: ${window.location.origin}/comm\nAccess code: ${wave.code}`;
+  // Если буфер обмена недоступен, показываем текст в тосте, чтобы его можно было переписать.
+  const copy = (text: string, done: string) => {
     try {
       navigator.clipboard.writeText(text).then(
-        () => toast("Copied"),
-        () => toast(text.replace("\n", " · ")),
+        () => toast(done),
+        () => toast(text),
       );
     } catch {
-      toast(text.replace("\n", " · "));
+      toast(text);
     }
   };
+  const copyLink = () => copy(`${window.location.origin}/comm`, "Link copied");
+  const copyCode = () => wave && copy(wave.code, "Code copied");
 
   const exportCsv = () => {
     if (!wave || !results || results.locked) return;
@@ -386,7 +387,10 @@ function CommDashboard() {
                 Change code
               </button>
               <button className="btn" onClick={copyLink}>
-                Copy link and code
+                Copy link
+              </button>
+              <button className="btn" onClick={copyCode}>
+                Copy code
               </button>
               <button
                 className="btn solid"
