@@ -1,5 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/integrations/firebase/client";
@@ -18,6 +19,7 @@ function ResultPage() {
     score: number;
     scores: Record<ApgarKey, number>;
   } | null>(null);
+  const [status, setStatus] = useState<"loading" | "ready" | "notFound" | "error">("loading");
 
   useEffect(() => {
     if (!loading && !user) navigate({ to: "/auth", search: { mode: "login" } });
@@ -25,14 +27,45 @@ function ResultPage() {
 
   useEffect(() => {
     if (!user) return;
-    getDoc(doc(db, "apgar_results", id)).then((snap) => {
-      if (snap.exists()) {
-        setData(snap.data() as { score: number; scores: Record<ApgarKey, number> });
-      }
-    });
+    setStatus("loading");
+    getDoc(doc(db, "apgar_results", id))
+      .then((snap) => {
+        if (snap.exists()) {
+          setData(snap.data() as { score: number; scores: Record<ApgarKey, number> });
+          setStatus("ready");
+        } else {
+          setStatus("notFound");
+        }
+      })
+      .catch(() => setStatus("error"));
   }, [id, user]);
 
-  if (!data) return null;
+  if (status !== "ready" || !data) {
+    return (
+      <div
+        className="flex min-h-screen items-center justify-center px-4"
+        style={{ background: "var(--gradient-soft)" }}
+      >
+        {status === "loading" ? (
+          <div className="flex items-center gap-3 text-muted-foreground" role="status">
+            <Loader2 className="h-5 w-5 animate-spin" />
+            <span>Загружаем результат…</span>
+          </div>
+        ) : (
+          <div className="text-center">
+            <p className="text-muted-foreground">
+              {status === "notFound"
+                ? "Результат не найден."
+                : "Не удалось загрузить результат. Попробуйте обновить страницу."}
+            </p>
+            <Link to="/dashboard" className="mt-4 inline-block text-primary underline">
+              В личный кабинет
+            </Link>
+          </div>
+        )}
+      </div>
+    );
+  }
   const v = getVerdict(data.score);
   const accent =
     v.level === "good" ? "var(--success)" : v.level === "warning" ? "var(--warning)" : "var(--destructive)";
