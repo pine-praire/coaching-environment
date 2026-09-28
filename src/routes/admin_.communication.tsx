@@ -396,7 +396,7 @@ function CommDashboard() {
                 className="btn solid"
                 onClick={exportCsv}
                 disabled={wave.count < THRESHOLD || !results || results.locked}
-                title={wave.count < THRESHOLD ? `Available from ${THRESHOLD} responses` : undefined}
+                title={wave.count < THRESHOLD ? "Available after the first response" : undefined}
               >
                 Download all answers (CSV)
               </button>
@@ -582,8 +582,7 @@ function Content({
         <div className="big">{N}</div>
         <h2>response{N === 1 ? "" : "s"} so far</h2>
         <p className="muted" style={{ maxWidth: 460, margin: "8px auto 0" }}>
-          Results appear from {THRESHOLD} responses. With fewer answers, averages can be traced back
-          to specific people.
+          Results will appear here after the first response.
         </p>
       </section>
     );

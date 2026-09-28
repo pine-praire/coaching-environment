@@ -128,12 +128,11 @@ describe("waves", () => {
 });
 
 describe("getWaveResults", () => {
-  it("below 5 responses returns only the count", async () => {
-    for (let i = 0; i < 4; i++) await svc.submitResponse(repo, "ALPHA-OCT", payload(), new Date());
-    expect(await svc.getWaveResults(repo, waveId)).toEqual({ locked: true, count: 4 });
+  it("with no responses returns only the count", async () => {
+    expect(await svc.getWaveResults(repo, waveId)).toEqual({ locked: true, count: 0 });
   });
 
-  it("from 5 responses returns answers without ids, dates or waveId", async () => {
+  it("from the first response returns answers without ids, dates or waveId", async () => {
     for (let i = 0; i < 5; i++)
       await svc.submitResponse(repo, "ALPHA-OCT", payload(i + 1), new Date());
     const res = await svc.getWaveResults(repo, waveId);
@@ -171,5 +170,13 @@ describe("setStar", () => {
     expect(repo.waves.get(waveId)!.starred).toEqual({});
     expect(await svc.setStar(repo, waveId, "../../x", true)).toEqual({ ok: false });
     expect(await svc.setStar(repo, waveId, "0123456789abcdef_email", true)).toEqual({ ok: false });
+  });
+});
+
+describe("getWaveResults threshold", () => {
+  it("shows results from the very first response", async () => {
+    await svc.submitResponse(repo, "ALPHA-OCT", payload(), new Date());
+    const res = await svc.getWaveResults(repo, waveId);
+    expect(res && !res.locked && res.answers).toHaveLength(1);
   });
 });

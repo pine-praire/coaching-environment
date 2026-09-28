@@ -96,11 +96,14 @@ describe("/admin/communication", () => {
     expect(screen.getByText("6 answers · 1 starred")).toBeInTheDocument();
   });
 
-  it("below the threshold shows only the count", async () => {
-    fns.listWavesFn.mockResolvedValue([{ ...WAVE, count: 3 }]);
-    fns.getWaveResultsFn.mockResolvedValue({ locked: true, count: 3 });
+  it("with no responses shows only the count", async () => {
+    fns.listWavesFn.mockResolvedValue([{ ...WAVE, count: 0 }]);
+    fns.getWaveResultsFn.mockResolvedValue({ locked: true, count: 0 });
     render(<Page />);
     await screen.findByText("responses so far");
+    expect(
+      screen.getByText("Results will appear here after the first response."),
+    ).toBeInTheDocument();
     expect(screen.queryByText("Team profile")).not.toBeInTheDocument();
     expect(screen.getByText("Download all answers (CSV)")).toBeDisabled();
   });
