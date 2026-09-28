@@ -13,11 +13,7 @@ import { nitro } from "nitro/vite";
 // Nitro здесь не срабатывает (не находит подпути firebase-admin/* по exports, а при обходе
 // ломается rollup), поэтому пакет помечается внешним, а его файлы со всеми зависимостями
 // копируются в node_modules функции отдельной трассировкой после сборки.
-const SERVER_EXTERNAL_ENTRIES = [
-  "firebase-admin/app",
-  "firebase-admin/auth",
-  "firebase-admin/firestore",
-];
+const SERVER_EXTERNAL_ENTRIES = ["firebase-admin/app", "firebase-admin/firestore"];
 
 export default defineConfig({
   cloudflare: false,
