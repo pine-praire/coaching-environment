@@ -27,7 +27,7 @@ interface AdminResult {
 }
 
 function AdminPage() {
-  const { user, loading, isAdmin } = useAuth();
+  const { user, loading, isAdmin, roleLoading } = useAuth();
   const navigate = useNavigate();
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [results, setResults] = useState<AdminResult[]>([]);
@@ -36,10 +36,10 @@ function AdminPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (loading) return;
+    if (loading || (user && roleLoading)) return;
     if (!user) { navigate({ to: "/auth", search: { mode: "login" } }); return; }
     if (!isAdmin) { navigate({ to: "/dashboard" }); return; }
-  }, [loading, user, isAdmin, navigate]);
+  }, [loading, roleLoading, user, isAdmin, navigate]);
 
   useEffect(() => {
     if (!user || !isAdmin) return;
@@ -99,7 +99,7 @@ function AdminPage() {
     );
   };
 
-  if (loading || !user || !isAdmin) return null;
+  if (loading || roleLoading || !user || !isAdmin) return null;
 
   const toggle = (id: string) =>
     setExpanded((prev) => {

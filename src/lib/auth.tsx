@@ -9,6 +9,9 @@ interface AuthCtx {
   loading: boolean;
   displayName: string | null;
   isAdmin: boolean;
+  // true, пока роль из user_roles ещё не прочитана. loading при этом уже false:
+  // обычные страницы не ждут роль, а админские ждут, чтобы не выкидывать админа при обновлении.
+  roleLoading: boolean;
 }
 
 const Ctx = createContext<AuthCtx>({
@@ -16,6 +19,7 @@ const Ctx = createContext<AuthCtx>({
   loading: true,
   displayName: null,
   isAdmin: false,
+  roleLoading: true,
 });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -23,9 +27,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [displayName, setDisplayName] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [roleLoading, setRoleLoading] = useState(true);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (u) => {
+      setRoleLoading(!!u);
       setUser(u);
       setLoading(false);
       if (u) {
@@ -37,6 +43,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           console.error("[auth] failed to fetch user_roles:", err);
           setIsAdmin(false);
         }
+        setRoleLoading(false);
       } else {
         setDisplayName(null);
         setIsAdmin(false);
@@ -45,7 +52,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return unsub;
   }, []);
 
-  return <Ctx.Provider value={{ user, loading, displayName, isAdmin }}>{children}</Ctx.Provider>;
+  return (
+    <Ctx.Provider value={{ user, loading, displayName, isAdmin, roleLoading }}>
+      {children}
+    </Ctx.Provider>
+  );
 }
 
 export const useAuth = () => useContext(Ctx);

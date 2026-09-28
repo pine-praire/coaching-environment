@@ -197,19 +197,19 @@ function Hist({ d, N, tip }: { d: number[]; N: number; tip: TipApi }) {
 /* ---------- page ---------- */
 
 function CommDashboardPage() {
-  const { user, loading, isAdmin } = useAuth();
+  const { user, loading, isAdmin, roleLoading } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (loading) return;
+    if (loading || (user && roleLoading)) return;
     if (!user) {
       navigate({ to: "/auth", search: { mode: "login" } });
       return;
     }
     if (!isAdmin) navigate({ to: "/dashboard" });
-  }, [loading, user, isAdmin, navigate]);
+  }, [loading, roleLoading, user, isAdmin, navigate]);
 
-  if (loading || !user || !isAdmin) return null;
+  if (loading || roleLoading || !user || !isAdmin) return null;
   return <CommDashboard />;
 }
 

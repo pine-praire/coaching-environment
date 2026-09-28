@@ -162,4 +162,16 @@ describe("/admin/communication", () => {
     fireEvent.click(screen.getByText("Copy code"));
     expect(writeText).toHaveBeenLastCalledWith("ALPHA-OCT");
   });
+
+  it("waits for the admin role on page reload instead of redirecting", () => {
+    mockUseAuth.mockReturnValue({
+      user: { uid: "admin" },
+      loading: false,
+      isAdmin: false,
+      roleLoading: true,
+    });
+    const { container } = render(<Page />);
+    expect(mockNavigate).not.toHaveBeenCalled();
+    expect(container.innerHTML).toBe("");
+  });
 });
