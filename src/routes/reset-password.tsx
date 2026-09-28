@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PasswordInput } from "@/components/password-input";
 import { confirmPasswordReset, verifyPasswordResetCode } from "firebase/auth";
 import { auth } from "@/integrations/firebase/client";
 import { toast } from "sonner";
@@ -68,11 +69,11 @@ function ResetPasswordPage() {
           <form onSubmit={submit} className="mt-6 space-y-4">
             <div>
               <Label htmlFor="password">Новый пароль</Label>
-              <Input id="password" type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} />
+              <PasswordInput id="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} />
             </div>
             <div>
               <Label htmlFor="confirm">Повторите пароль</Label>
-              <Input id="confirm" type="password" required minLength={6} value={confirm} onChange={(e) => setConfirm(e.target.value)} />
+              <PasswordInput id="confirm" required minLength={6} value={confirm} onChange={(e) => setConfirm(e.target.value)} />
             </div>
             <Button type="submit" className="w-full" disabled={busy}>
               {busy ? "..." : "Сохранить пароль"}
