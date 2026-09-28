@@ -26,7 +26,8 @@
 | Стили | Tailwind 4, токены в `src/styles.css` |
 | UI | shadcn/ui (Radix) в `src/components/ui/`, иконки `lucide-react` |
 | Auth + DB | Firebase Auth + Firestore (`src/integrations/firebase/client.ts`) |
-| Хостинг | Vercel |
+| Хостинг | Vercel (`www.boldina.eu`, `apgar-insight.vercel.app`) |
+| Пакеты | npm (`package-lock.json`); Vercel ставит через npm |
 | Тесты | Vitest + Testing Library, jsdom (`vitest.config.ts`, setup `src/test/setup.ts`) |
 
 **Новые зависимости — только после обсуждения.**
@@ -36,7 +37,7 @@
 ## Устройство
 
 - `src/routes/` — страницы: `index`, `auth`, `reset-password`, `dashboard`, `test`,
-  `result.$id`, `procrastination`, `bingo`, `admin`, `privacy`.
+  `result.$id`, `procrastination`, `bingo`, `admin`, `privacy`, `comm`, `admin_.communication`.
 - `src/routeTree.gen.ts` — **генерируется** роутер-плагином, руками не править.
 - `src/lib/` — логика: `apgar.ts`, `procrastination.ts`, `auth.tsx` (контекст `useAuth`: `user`, `isAdmin`).
 - `src/components/` — свои компоненты; `ui/` — только shadcn-примитивы.
@@ -98,12 +99,11 @@ npm run build
 
 ## Наследие Supabase (до 2026-05-05)
 
-До коммита `317d23f` проект жил на Supabase. Остатки: `src/integrations/supabase/`,
-`@supabase/supabase-js` в зависимостях, папка `supabase/` с миграциями, тесты
-`migration.test.ts`, `procrastination-migration.test.ts`, `routes/auth.test.tsx`,
-`routes/reset-password.test.tsx`. Приложение этот код не импортирует.
-`.lovable/plan.md` описывает Supabase-версию админки — неактуален.
-Новые фичи на Supabase не строить.
+До коммита `317d23f` проект жил на Supabase (проект `voyjtmydmzgsxumzawgx`). Код, пакет и миграции
+удалены 2026-09-28. Переноса данных в коммитах не видно: если там остались пользователи и результаты
+до мая, их нужно выгружать из панели Supabase. Новые фичи на Supabase не строить.
+`supabase/migrations/20260524000001_course_progress.sql` — черновик фичи курса (модули, прогресс,
+дневник), не применялся; при реализации переносить на Firestore.
 
 ---
 
@@ -111,10 +111,8 @@ npm run build
 
 | Вопрос | Статус |
 |---|---|
-| Удалить Supabase-код, пакет и папку `supabase/` | ждёт решения |
-| `supabase/migrations/20260524000001_course_progress.sql` (модули курса, прогресс, дневник) — перенести на Firestore или удалить | ждёт решения |
-| Менеджер пакетов: npm или bun (сейчас три lock-файла) | ждёт решения |
-| `firestore.rules` в репозитории — задеплоить после сверки с текущими правилами в консоли | ждёт деплоя |
+| Фича курса по `course_progress.sql` — строить на Firestore или отказаться | ждёт решения |
+| Остались ли в Supabase пользователи и результаты, которые надо перенести | проверить в панели Supabase |
 | Ошибки `tsc` в тестах (`admin`, `dashboard`, `bingo`, `procrastination-integration`) | не исправлено |
 | Причина ухода с Supabase не записана | уточнить у Sasha |
 | `wrangler.jsonc` остался от Cloudflare, деплой сейчас на Vercel | можно удалить |
