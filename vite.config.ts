@@ -26,21 +26,28 @@ export default defineConfig({
       nitro({
         preset: "vercel",
         rollupConfig: { external: [/^firebase-admin(?:\/|$)/] },
-        hooks: {
-          async compiled(nitro) {
-            if (nitro.options.dev) return;
-            // nf3 — трассировщик, которым пользуется сам Nitro (внутри @vercel/nft).
-            const { traceNodeModules } = await import("nf3");
-            await traceNodeModules(
-              SERVER_EXTERNAL_ENTRIES.map((id) => fileURLToPath(import.meta.resolve(id))),
-              {
-                rootDir: nitro.options.rootDir,
-                outDir: nitro.options.output.serverDir,
-                conditions: ["node", "import", "default"],
-              },
-            );
+        // Модуль, а не hooks.compiled в конфиге: хук в конфиге заменил бы хук пресета vercel,
+        // который пишет .vercel/output/config.json, и Vercel не нашёл бы результат сборки.
+        modules: [
+          {
+            name: "trace-firebase-admin",
+            setup(nitro) {
+              nitro.hooks.hook("compiled", async () => {
+                if (nitro.options.dev) return;
+                // nf3 — трассировщик, которым пользуется сам Nitro (внутри @vercel/nft).
+                const { traceNodeModules } = await import("nf3");
+                await traceNodeModules(
+                  SERVER_EXTERNAL_ENTRIES.map((id) => fileURLToPath(import.meta.resolve(id))),
+                  {
+                    rootDir: nitro.options.rootDir,
+                    outDir: nitro.options.output.serverDir,
+                    conditions: ["node", "import", "default"],
+                  },
+                );
+              });
+            },
           },
-        },
+        ],
       }),
     ],
   },
