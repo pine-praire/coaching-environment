@@ -15,6 +15,7 @@ import { buildCsv } from "@/lib/comm-csv";
 import { OPEN, QUICK_LABEL, THRESHOLD, ZONES, type OpenId } from "@/lib/comm-survey";
 import {
   createWaveFn,
+  deleteWaveFn,
   getWaveResultsFn,
   listWavesFn,
   setStarFn,
@@ -303,36 +304,27 @@ function CommDashboard() {
             <div className="brand">Communication Debugger · Admin</div>
             <h1>Survey results</h1>
           </div>
-          <div className="controls">
-            <label htmlFor="wave" className="small muted">
-              Survey run
-            </label>
-            <select
-              id="wave"
-              value={waveId ?? ""}
-              onChange={(e) => setWaveId(e.target.value)}
-              disabled={!waves?.length}
-            >
-              {waves?.map((x) => (
-                <option key={x.id} value={x.id}>
-                  {x.name}
-                </option>
-              ))}
-            </select>
-            <button
-              className="btn"
-              id="newWave"
-              onClick={() => setPanel(panel === "new" ? "none" : "new")}
-            >
-              + New run
-            </button>
-          </div>
         </div>
 
         {loadError && (
           <section className="card">
             <p className="muted">{loadError}</p>
           </section>
+        )}
+
+        {waves && (
+          <RunList
+            waves={waves}
+            selectedId={waveId}
+            onSelect={setWaveId}
+            onNew={() => setPanel(panel === "new" ? "none" : "new")}
+            onDeleted={async (name) => {
+              setPanel("none");
+              await loadWaves();
+              toast(`“${name}” deleted`);
+            }}
+            toast={toast}
+          />
         )}
 
         {panel === "new" && (
@@ -344,12 +336,6 @@ function CommDashboard() {
               toast("The run is created and collecting answers.");
             }}
           />
-        )}
-
-        {waves && !waves.length && panel !== "new" && (
-          <section className="card">
-            <div className="empty">No survey runs yet. Create one with “+ New run”.</div>
-          </section>
         )}
 
         {wave && (
@@ -422,6 +408,104 @@ function CommDashboard() {
       {tipNode}
       {toastNode}
     </div>
+  );
+}
+
+function RunList({
+  waves,
+  selectedId,
+  onSelect,
+  onNew,
+  onDeleted,
+  toast,
+}: {
+  waves: Wave[];
+  selectedId: string | null;
+  onSelect: (id: string) => void;
+  onNew: () => void;
+  onDeleted: (name: string) => void;
+  toast: (m: string) => void;
+}) {
+  const [confirmId, setConfirmId] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const remove = async (w: Wave) => {
+    setBusy(true);
+    try {
+      const res = await deleteWaveFn({ data: { waveId: w.id } });
+      if (!res.ok) toast(WAVE_ERROR[res.error] ?? "Something went wrong.");
+      else {
+        setConfirmId(null);
+        onDeleted(w.name);
+      }
+    } catch {
+      toast("Couldn’t delete the run. Try again.");
+    }
+    setBusy(false);
+  };
+
+  return (
+    <section className="card">
+      <div className="card-head">
+        <div className="desc">
+          <h2>Survey runs</h2>
+        </div>
+        <button className="btn" id="newWave" onClick={onNew}>
+          + New run
+        </button>
+      </div>
+      {!waves.length ? (
+        <div className="empty">No survey runs yet. Create one with “+ New run”.</div>
+      ) : (
+        <ul className="runs">
+          {waves.map((w) =>
+            confirmId === w.id ? (
+              <li key={w.id} className="run confirm">
+                <span className="small">
+                  <b>
+                    Delete “{w.name}” and its {w.count} response{w.count === 1 ? "" : "s"}?
+                  </b>{" "}
+                  <span className="muted">This can’t be undone.</span>
+                </span>
+                <span className="run-btns">
+                  <button className="btn danger" onClick={() => remove(w)} disabled={busy}>
+                    Delete
+                  </button>
+                  <button className="btn" onClick={() => setConfirmId(null)} disabled={busy}>
+                    Cancel
+                  </button>
+                </span>
+              </li>
+            ) : (
+              <li key={w.id} className={`run ${w.id === selectedId ? "on" : ""}`}>
+                <button
+                  className="run-main"
+                  aria-current={w.id === selectedId}
+                  onClick={() => onSelect(w.id)}
+                >
+                  <span className="run-name">{w.name}</span>
+                  <span className="run-code">{w.code}</span>
+                  <span className="small muted">
+                    {w.count} response{w.count === 1 ? "" : "s"}
+                  </span>
+                  <span className={`pill ${w.open ? "open" : "closed"}`}>
+                    <i />
+                    {w.open ? "Open" : "Closed"}
+                  </span>
+                </button>
+                <button
+                  className="btn"
+                  aria-label={`Delete “${w.name}”`}
+                  onClick={() => setConfirmId(w.id)}
+                >
+                  Delete
+                </button>
+              </li>
+            ),
+          )}
+        </ul>
+      )}
+    </section>
   );
 }
 

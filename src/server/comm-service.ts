@@ -41,6 +41,7 @@ export interface CommRepo {
   addResponse(doc: StoredResponse): Promise<void>;
   listResponses(waveId: string): Promise<{ id: string; data: StoredResponse }[]>;
   setStar(waveId: string, key: string, on: boolean): Promise<void>;
+  deleteWave(id: string): Promise<void>; // вместе со всеми ответами запуска
 }
 
 // ---------- участники ----------
@@ -146,6 +147,13 @@ export async function updateWave(
     out.open = patch.open;
   }
   await repo.updateWave(waveId, out);
+  return { ok: true } as const;
+}
+
+export async function deleteWave(repo: CommRepo, waveId: unknown) {
+  if (typeof waveId !== "string" || !(await repo.getWave(waveId)))
+    return { ok: false, error: "not_found" as WaveError } as const;
+  await repo.deleteWave(waveId);
   return { ok: true } as const;
 }
 

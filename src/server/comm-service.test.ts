@@ -180,3 +180,25 @@ describe("getWaveResults threshold", () => {
     expect(res && !res.locked && res.answers).toHaveLength(1);
   });
 });
+
+describe("deleteWave", () => {
+  it("removes the run and only its responses; the code stops working", async () => {
+    const other = await svc.createWave(repo, "Team Beta", "beta-oct");
+    if (!other.ok) throw new Error("setup");
+    await svc.submitResponse(repo, "ALPHA-OCT", payload(), new Date());
+    await svc.submitResponse(repo, "ALPHA-OCT", payload(), new Date());
+    await svc.submitResponse(repo, "BETA-OCT", payload(), new Date());
+
+    expect(await svc.deleteWave(repo, waveId)).toEqual({ ok: true });
+    expect(await repo.getWave(waveId)).toBeNull();
+    expect(await repo.countResponses(waveId)).toBe(0);
+    expect(await repo.countResponses(other.waveId)).toBe(1);
+    expect((await svc.listWaves(repo)).map((w) => w.id)).toEqual([other.waveId]);
+    expect(await svc.checkCode(repo, "ALPHA-OCT")).toEqual({ ok: false });
+  });
+
+  it("unknown or malformed id → not_found", async () => {
+    expect(await svc.deleteWave(repo, "nope")).toEqual({ ok: false, error: "not_found" });
+    expect(await svc.deleteWave(repo, 42)).toEqual({ ok: false, error: "not_found" });
+  });
+});

@@ -11,6 +11,7 @@ const fns = {
   createWaveFn: vi.fn(),
   updateWaveFn: vi.fn(),
   setStarFn: vi.fn(),
+  deleteWaveFn: vi.fn(),
 };
 
 vi.mock("@tanstack/react-router", () => ({
@@ -60,6 +61,7 @@ beforeEach(() => {
   fns.setStarFn.mockResolvedValue({ ok: true });
   fns.updateWaveFn.mockResolvedValue({ ok: true });
   fns.createWaveFn.mockResolvedValue({ ok: true, waveId: "w2" });
+  fns.deleteWaveFn.mockResolvedValue({ ok: true });
 });
 
 describe("/admin/communication", () => {
@@ -80,7 +82,7 @@ describe("/admin/communication", () => {
   it("renders all blocks from server data", async () => {
     render(<Page />);
     await screen.findByText("Team profile");
-    expect(screen.getByText("ALPHA-OCT")).toBeInTheDocument();
+    expect(screen.getAllByText("ALPHA-OCT")).toHaveLength(2); // строка списка и плитка
     expect(screen.getByText("Where the team sees things differently")).toBeInTheDocument();
     expect(screen.getByText("Top problems (quick pick)")).toBeInTheDocument();
     expect(screen.getByText("All questions")).toBeInTheDocument();
@@ -176,5 +178,36 @@ describe("/admin/communication", () => {
     const { container } = render(<Page />);
     expect(mockNavigate).not.toHaveBeenCalled();
     expect(container.innerHTML).toBe("");
+  });
+
+  it("lists all runs and switches between them", async () => {
+    const beta = { id: "w2", name: "Team Beta", code: "BETA-OCT", open: false, count: 1 };
+    fns.listWavesFn.mockResolvedValue([WAVE, beta]);
+    render(<Page />);
+    await screen.findByText("Team profile");
+    expect(screen.getByText("Team Beta")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Team Beta"));
+    await waitFor(() =>
+      expect(fns.getWaveResultsFn).toHaveBeenLastCalledWith({ data: { waveId: "w2" } }),
+    );
+  });
+
+  it("deletes a run only after confirmation", async () => {
+    render(<Page />);
+    await screen.findByText("Team profile");
+    fireEvent.click(screen.getByLabelText("Delete “Team Alpha · before training”"));
+    expect(fns.deleteWaveFn).not.toHaveBeenCalled();
+    expect(
+      screen.getByText("Delete “Team Alpha · before training” and its 6 responses?"),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("Cancel"));
+    expect(fns.deleteWaveFn).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByLabelText("Delete “Team Alpha · before training”"));
+    fns.listWavesFn.mockResolvedValue([]);
+    fireEvent.click(screen.getByText("Delete"));
+    await waitFor(() => expect(fns.deleteWaveFn).toHaveBeenCalledWith({ data: { waveId: "w1" } }));
+    expect(await screen.findByText(/No survey runs yet/)).toBeInTheDocument();
   });
 });

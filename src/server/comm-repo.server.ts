@@ -59,6 +59,18 @@ const firestoreCommRepo: CommRepo = {
       .doc(waveId)
       .update({ [`starred.${key}`]: on ? true : FieldValue.delete() });
   },
+  async deleteWave(id) {
+    // Сначала ответы, запуск последним: если удаление прервётся, запуск останется в списке и его можно удалить повторно.
+    const db = adminDb();
+    for (;;) {
+      const snap = await db.collection(RESPONSES).where("waveId", "==", id).limit(400).get();
+      if (snap.empty) break;
+      const batch = db.batch();
+      snap.docs.forEach((d) => batch.delete(d.ref));
+      await batch.commit();
+    }
+    await db.collection(WAVES).doc(id).delete();
+  },
 };
 
 // Локальная разработка без ключа сервисного аккаунта: COMM_DEV_MEMORY=1 npm run dev.

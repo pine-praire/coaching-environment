@@ -37,6 +37,11 @@ export const updateWaveFn = createServerFn({ method: "POST" })
     svc.updateWave(commRepo(), data.waveId, { name: data.name, code: data.code, open: data.open }),
   );
 
+export const deleteWaveFn = createServerFn({ method: "POST" })
+  .middleware([requireAdmin])
+  .inputValidator((d: unknown) => input<{ waveId?: unknown }>(d))
+  .handler(({ data }) => svc.deleteWave(commRepo(), data.waveId));
+
 export const getWaveResultsFn = createServerFn({ method: "POST" })
   .middleware([requireAdmin])
   .inputValidator((d: unknown) => input<{ waveId?: unknown }>(d))

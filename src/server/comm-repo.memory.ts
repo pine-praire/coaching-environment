@@ -40,4 +40,8 @@ export class MemoryCommRepo implements CommRepo {
     if (on) w.starred[key] = true;
     else delete w.starred[key];
   }
+  async deleteWave(id: string) {
+    for (const [key, r] of this.responses) if (r.waveId === id) this.responses.delete(key);
+    this.waves.delete(id);
+  }
 }
