@@ -9,64 +9,24 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as TestRouteImport } from './routes/test'
-import { Route as ResetPasswordRouteImport } from './routes/reset-password'
-import { Route as ProcrastinationRouteImport } from './routes/procrastination'
-import { Route as PrivacyRouteImport } from './routes/privacy'
-import { Route as DashboardRouteImport } from './routes/dashboard'
-import { Route as CommRouteImport } from './routes/comm'
-import { Route as BlizkieRouteImport } from './routes/blizkie'
-import { Route as BingoRouteImport } from './routes/bingo'
-import { Route as AuthRouteImport } from './routes/auth'
-import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as ResultIdRouteImport } from './routes/result.$id'
-import { Route as AdminCommunicationRouteImport } from './routes/admin_.communication'
+import { Route as AdminRouteImport } from './routes/admin'
+import { Route as AuthRouteImport } from './routes/auth'
+import { Route as BingoRouteImport } from './routes/bingo'
+import { Route as BlizkieRouteImport } from './routes/blizkie'
+import { Route as CommRouteImport } from './routes/comm'
+import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as PrivacyRouteImport } from './routes/privacy'
+import { Route as ProcrastinationRouteImport } from './routes/procrastination'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as TestRouteImport } from './routes/test'
 import { Route as AdminBlizkieRouteImport } from './routes/admin_.blizkie'
+import { Route as AdminCommunicationRouteImport } from './routes/admin_.communication'
+import { Route as ResultIdRouteImport } from './routes/result.$id'
 
-const TestRoute = TestRouteImport.update({
-  id: '/test',
-  path: '/test',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ResetPasswordRoute = ResetPasswordRouteImport.update({
-  id: '/reset-password',
-  path: '/reset-password',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ProcrastinationRoute = ProcrastinationRouteImport.update({
-  id: '/procrastination',
-  path: '/procrastination',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PrivacyRoute = PrivacyRouteImport.update({
-  id: '/privacy',
-  path: '/privacy',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DashboardRoute = DashboardRouteImport.update({
-  id: '/dashboard',
-  path: '/dashboard',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const CommRoute = CommRouteImport.update({
-  id: '/comm',
-  path: '/comm',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const BlizkieRoute = BlizkieRouteImport.update({
-  id: '/blizkie',
-  path: '/blizkie',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const BingoRoute = BingoRouteImport.update({
-  id: '/bingo',
-  path: '/bingo',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AuthRoute = AuthRouteImport.update({
-  id: '/auth',
-  path: '/auth',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminRoute = AdminRouteImport.update({
@@ -74,14 +34,54 @@ const AdminRoute = AdminRouteImport.update({
   path: '/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ResultIdRoute = ResultIdRouteImport.update({
-  id: '/result/$id',
-  path: '/result/$id',
+const BingoRoute = BingoRouteImport.update({
+  id: '/bingo',
+  path: '/bingo',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BlizkieRoute = BlizkieRouteImport.update({
+  id: '/blizkie',
+  path: '/blizkie',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CommRoute = CommRouteImport.update({
+  id: '/comm',
+  path: '/comm',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DashboardRoute = DashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProcrastinationRoute = ProcrastinationRouteImport.update({
+  id: '/procrastination',
+  path: '/procrastination',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TestRoute = TestRouteImport.update({
+  id: '/test',
+  path: '/test',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminBlizkieRoute = AdminBlizkieRouteImport.update({
+  id: '/admin_/blizkie',
+  path: '/admin/blizkie',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminCommunicationRoute = AdminCommunicationRouteImport.update({
@@ -89,9 +89,9 @@ const AdminCommunicationRoute = AdminCommunicationRouteImport.update({
   path: '/admin/communication',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AdminBlizkieRoute = AdminBlizkieRouteImport.update({
-  id: '/admin_/blizkie',
-  path: '/admin/blizkie',
+const ResultIdRoute = ResultIdRouteImport.update({
+  id: '/result/$id',
+  path: '/result/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -214,67 +214,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/test': {
-      id: '/test'
-      path: '/test'
-      fullPath: '/test'
-      preLoaderRoute: typeof TestRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/reset-password': {
-      id: '/reset-password'
-      path: '/reset-password'
-      fullPath: '/reset-password'
-      preLoaderRoute: typeof ResetPasswordRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/procrastination': {
-      id: '/procrastination'
-      path: '/procrastination'
-      fullPath: '/procrastination'
-      preLoaderRoute: typeof ProcrastinationRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/privacy': {
-      id: '/privacy'
-      path: '/privacy'
-      fullPath: '/privacy'
-      preLoaderRoute: typeof PrivacyRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/dashboard': {
-      id: '/dashboard'
-      path: '/dashboard'
-      fullPath: '/dashboard'
-      preLoaderRoute: typeof DashboardRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/comm': {
-      id: '/comm'
-      path: '/comm'
-      fullPath: '/comm'
-      preLoaderRoute: typeof CommRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/blizkie': {
-      id: '/blizkie'
-      path: '/blizkie'
-      fullPath: '/blizkie'
-      preLoaderRoute: typeof BlizkieRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/bingo': {
-      id: '/bingo'
-      path: '/bingo'
-      fullPath: '/bingo'
-      preLoaderRoute: typeof BingoRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/auth': {
-      id: '/auth'
-      path: '/auth'
-      fullPath: '/auth'
-      preLoaderRoute: typeof AuthRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin': {
@@ -284,18 +228,74 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/result/$id': {
-      id: '/result/$id'
-      path: '/result/$id'
-      fullPath: '/result/$id'
-      preLoaderRoute: typeof ResultIdRouteImport
+    '/bingo': {
+      id: '/bingo'
+      path: '/bingo'
+      fullPath: '/bingo'
+      preLoaderRoute: typeof BingoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/blizkie': {
+      id: '/blizkie'
+      path: '/blizkie'
+      fullPath: '/blizkie'
+      preLoaderRoute: typeof BlizkieRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/comm': {
+      id: '/comm'
+      path: '/comm'
+      fullPath: '/comm'
+      preLoaderRoute: typeof CommRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dashboard': {
+      id: '/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof DashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/procrastination': {
+      id: '/procrastination'
+      path: '/procrastination'
+      fullPath: '/procrastination'
+      preLoaderRoute: typeof ProcrastinationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/test': {
+      id: '/test'
+      path: '/test'
+      fullPath: '/test'
+      preLoaderRoute: typeof TestRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin_/blizkie': {
+      id: '/admin_/blizkie'
+      path: '/admin/blizkie'
+      fullPath: '/admin/blizkie'
+      preLoaderRoute: typeof AdminBlizkieRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin_/communication': {
@@ -305,11 +305,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminCommunicationRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/admin_/blizkie': {
-      id: '/admin_/blizkie'
-      path: '/admin/blizkie'
-      fullPath: '/admin/blizkie'
-      preLoaderRoute: typeof AdminBlizkieRouteImport
+    '/result/$id': {
+      id: '/result/$id'
+      path: '/result/$id'
+      fullPath: '/result/$id'
+      preLoaderRoute: typeof ResultIdRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
