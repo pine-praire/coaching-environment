@@ -13,7 +13,8 @@
 - Прод: `apgar-insight.vercel.app`
 - Репозиторий: `pine-praire/coaching-environment` (бывший `apgar-insight`, старый адрес
   перенаправляет) — **публичный**. Ничего секретного в git.
-- Проект изначально сгенерирован в Lovable (`@lovable.dev/vite-tanstack-config`, папка `.lovable/`).
+- Проект изначально сгенерирован в Lovable; обёртка `@lovable.dev/vite-tanstack-config` убрана 2026-10-06,
+  сборка настроена напрямую в `vite.config.ts`.
 
 ---
 
@@ -22,7 +23,7 @@
 | Слой | Выбор |
 |---|---|
 | Framework | TanStack Start + TanStack Router (file-based), React 19, TypeScript |
-| Сборка | Vite 7 через `@lovable.dev/vite-tanstack-config` + `nitro({ preset: "vercel" })` |
+| Сборка | Vite 7, плагины явно в `vite.config.ts`: tailwind, tsconfig-paths, tanstackStart, react, `nitro({ preset: "vercel" })` |
 | Стили | Tailwind 4, токены в `src/styles.css` |
 | UI | shadcn/ui (Radix) в `src/components/ui/`, иконки `lucide-react` |
 | Auth + DB | Firebase Auth + Firestore (`src/integrations/firebase/client.ts`) |
@@ -97,8 +98,8 @@
 
 ## Правила
 
-- `vite.config.ts`: Lovable-конфиг уже подключает tanstackStart, react, tailwind, tsconfig-paths
-  и т.д. **Не добавлять эти плагины повторно** — сборка ломается.
+- `vite.config.ts`: все плагины подключены явно, порядок важен (tanstackStart до react, nitro последним).
+  Защита импортов (`importProtection`) задана там же: файлы из `**/server/**` в клиент нельзя.
 - Firebase web-конфиг (`apiKey`, `projectId`) публичный по своей природе; защита данных —
   только правила Firestore. Любая новая коллекция = новый блок в `firestore.rules`.
 - Проверки на клиенте (`isAdmin`, редиректы) — только UI. Доступ решают правила.
@@ -137,4 +138,3 @@ npm run build
 | Остались ли в Supabase пользователи и результаты, которые надо перенести | проверить в панели Supabase |
 | Ошибки `tsc` в тестах (`admin`, `dashboard`, `bingo`, `procrastination-integration`) | не исправлено |
 | Причина ухода с Supabase не записана | уточнить у Sasha |
-| `wrangler.jsonc` остался от Cloudflare, деплой сейчас на Vercel | можно удалить |
