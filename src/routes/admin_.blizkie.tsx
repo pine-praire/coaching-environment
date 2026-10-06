@@ -711,21 +711,6 @@ function SurveySettings(props: {
                 Копировать ссылку
               </Button>
             </div>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              disabled={!survey.password}
-              onClick={() =>
-                copyText(
-                  `Ссылка: ${link}\nПароль: ${survey.password}`,
-                  flash,
-                  "Ссылка и пароль скопированы.",
-                )
-              }
-            >
-              Копировать ссылку и пароль
-            </Button>
           </div>
 
           <DeleteSurveyDialog
