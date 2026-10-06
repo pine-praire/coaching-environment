@@ -1,5 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { KeyRound, Link2, Trash2 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -217,6 +218,11 @@ function ObsDashboard() {
     setTimeout(() => setNotice((cur) => (cur === m ? null : cur)), 3000);
   };
 
+  const onSurveyDeleted = async (name: string) => {
+    await loadSurveys();
+    flash(`Опрос о человеке «${name}» удалён вместе с ответами.`);
+  };
+
   const reloadAll = async () => {
     await loadSurveys();
     if (surveyId) await loadResponses(surveyId);
@@ -272,6 +278,8 @@ function ObsDashboard() {
                   setSurveyId(id);
                 }}
                 onNew={() => setCreating((v) => !v)}
+                onDeleted={onSurveyDeleted}
+                onError={setError}
                 flash={flash}
               />
             )}
@@ -290,10 +298,7 @@ function ObsDashboard() {
                 key={survey.id}
                 survey={survey}
                 onSaved={() => loadSurveys()}
-                onDeleted={async (name) => {
-                  await loadSurveys();
-                  flash(`Опрос о человеке «${name}» удалён вместе с ответами.`);
-                }}
+                onDeleted={onSurveyDeleted}
                 flash={flash}
               />
             )}
@@ -323,8 +328,11 @@ function SurveyList(props: {
   selectedId: string | null;
   onSelect: (id: string) => void;
   onNew: () => void;
+  onDeleted: (name: string) => Promise<void>;
+  onError: (m: string) => void;
   flash: (m: string) => void;
 }) {
+  const iconButton = "h-8 w-8 text-muted-foreground";
   return (
     <Section
       title="Опросы"
@@ -366,14 +374,55 @@ function SurveyList(props: {
                   </td>
                   <td className="py-2 pr-4">{s.open ? "Открыт" : "Закрыт"}</td>
                   <td className="py-2 pr-4 tabular-nums">{s.count}</td>
-                  <td className="py-2 text-right">
-                    {s.id === props.selectedId ? (
-                      <span className="px-3 text-xs text-muted-foreground">выбран</span>
-                    ) : (
-                      <Button size="sm" variant="ghost" onClick={() => props.onSelect(s.id)}>
-                        Открыть
+                  <td className="py-2">
+                    <div className="flex items-center justify-end gap-1">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className={iconButton}
+                        aria-label={`Копировать ссылку на опрос «${s.subject.nom}»`}
+                        title="Копировать ссылку"
+                        onClick={() => copyText(surveyLink(), props.flash, "Ссылка скопирована.")}
+                      >
+                        <Link2 />
                       </Button>
-                    )}
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className={iconButton}
+                        aria-label={`Копировать пароль опроса «${s.subject.nom}»`}
+                        title="Копировать пароль"
+                        disabled={!s.password}
+                        onClick={() =>
+                          copyText(s.password ?? "", props.flash, "Пароль скопирован.")
+                        }
+                      >
+                        <KeyRound />
+                      </Button>
+                      {s.id === props.selectedId ? (
+                        <span className="px-3 text-xs text-muted-foreground">выбран</span>
+                      ) : (
+                        <Button size="sm" variant="ghost" onClick={() => props.onSelect(s.id)}>
+                          Открыть
+                        </Button>
+                      )}
+                      <DeleteSurveyDialog
+                        survey={s}
+                        onDeleted={props.onDeleted}
+                        onError={props.onError}
+                        trigger={
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className={`${iconButton} hover:text-destructive`}
+                            aria-label={`Удалить опрос «${s.subject.nom}»`}
+                            title="Удалить опрос"
+                          >
+                            <Trash2 />
+                          </Button>
+                        }
+                      />
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -503,6 +552,43 @@ function NewSurveySection(props: {
   );
 }
 
+// Удаление опроса с подтверждением: из строки списка (корзина) и из настроек.
+function DeleteSurveyDialog(props: {
+  survey: Survey;
+  trigger: ReactNode;
+  onDeleted: (name: string) => Promise<void>;
+  onError: (m: string) => void;
+}) {
+  const { survey } = props;
+  const remove = async () => {
+    try {
+      const res = await deleteObsSurveyFn({ data: { surveyId: survey.id } });
+      if (!res.ok) return props.onError(SURVEY_ERROR[res.error] ?? "Не удалось удалить опрос.");
+      await props.onDeleted(survey.subject.nom);
+    } catch {
+      props.onError("Не удалось удалить опрос.");
+    }
+  };
+  return (
+    <AlertDialog>
+      <AlertDialogTrigger asChild>{props.trigger}</AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Удалить опрос о человеке «{survey.subject.nom}»?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Вместе с опросом навсегда удалятся все его ответы ({survey.count}). Восстановить их
+            будет нельзя. Сначала скачайте CSV, если ответы нужны.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Отмена</AlertDialogCancel>
+          <AlertDialogAction onClick={remove}>Удалить</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
 function SurveySettings(props: {
   survey: Survey;
   onSaved: () => Promise<void>;
@@ -531,16 +617,6 @@ function SurveySettings(props: {
       setErr("Не удалось сохранить.");
     } finally {
       setBusy(false);
-    }
-  };
-
-  const remove = async () => {
-    try {
-      const res = await deleteObsSurveyFn({ data: { surveyId: survey.id } });
-      if (!res.ok) return setErr(SURVEY_ERROR[res.error] ?? "Не удалось удалить опрос.");
-      await props.onDeleted(survey.subject.nom);
-    } catch {
-      setErr("Не удалось удалить опрос.");
     }
   };
 
@@ -611,7 +687,7 @@ function SurveySettings(props: {
                 disabled={!survey.password}
                 onClick={() => copyText(survey.password ?? "", flash, "Пароль скопирован.")}
               >
-                Копировать
+                Копировать пароль
               </Button>
             </div>
             <p className="text-xs text-muted-foreground">
@@ -632,7 +708,7 @@ function SurveySettings(props: {
                 variant="outline"
                 onClick={() => copyText(link, flash, "Ссылка скопирована.")}
               >
-                Копировать
+                Копировать ссылку
               </Button>
             </div>
             <Button
@@ -652,28 +728,16 @@ function SurveySettings(props: {
             </Button>
           </div>
 
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
+          <DeleteSurveyDialog
+            survey={survey}
+            onDeleted={props.onDeleted}
+            onError={setErr}
+            trigger={
               <Button type="button" size="sm" variant="outline" className="text-destructive">
                 Удалить опрос
               </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>
-                  Удалить опрос о человеке «{survey.subject.nom}»?
-                </AlertDialogTitle>
-                <AlertDialogDescription>
-                  Вместе с опросом навсегда удалятся все его ответы ({survey.count}). Восстановить
-                  их будет нельзя. Сначала скачайте CSV, если ответы нужны.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Отмена</AlertDialogCancel>
-                <AlertDialogAction onClick={remove}>Удалить</AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+            }
+          />
         </div>
       </div>
       {err && <p className="mt-4 text-sm text-destructive">{err}</p>}

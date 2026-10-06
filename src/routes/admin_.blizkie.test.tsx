@@ -29,7 +29,7 @@ const VERA = { nom: "Вера", acc: "Веру", dat: "Вере", gender: "f" as
 const OLEG = { nom: "Олег", acc: "Олега", dat: "Олегу", gender: "m" as const };
 const SURVEYS = [
   { id: "s2", subject: OLEG, password: "oleg-pass", hasPassword: true, open: true, count: 0 },
-  { id: "s1", subject: VERA, password: "vera-pass", hasPassword: true, open: true, count: 2 },
+  { id: "s1", subject: VERA, password: "vera-pass", hasPassword: true, open: false, count: 2 },
 ];
 const RESPONSES = [
   { ...obsAnswer({ name: "Ольга", child: true, v: "often" }, "2026-10-01T10:00:00Z"), id: "r1" },
@@ -133,6 +133,46 @@ describe("/admin/blizkie", () => {
     await waitFor(() =>
       expect(fns.deleteObsSurveyFn).toHaveBeenCalledWith({ data: { surveyId: "s2" } }),
     );
+  });
+
+  it("deletes a closed, not selected survey from its row", async () => {
+    render(<Page />);
+    await screen.findByText("Настройки: Олег");
+    const row = screen.getByText("Вера", { selector: "td" }).closest("tr")!;
+    expect(within(row).getByText("Закрыт")).toBeTruthy();
+    fireEvent.click(within(row).getByRole("button", { name: "Удалить опрос «Вера»" }));
+    expect(await screen.findByText(/удалятся все его ответы \(2\)/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Удалить" }));
+    await waitFor(() =>
+      expect(fns.deleteObsSurveyFn).toHaveBeenCalledWith({ data: { surveyId: "s1" } }),
+    );
+    await waitFor(() => expect(fns.listObsSurveysFn).toHaveBeenCalledTimes(2));
+    expect(await screen.findByText(/Опрос о человеке «Вера» удалён/)).toBeTruthy();
+  });
+
+  it("copies the link and the password of a survey with separate buttons", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText } });
+    render(<Page />);
+    await screen.findByText("Настройки: Олег");
+    const row = screen.getByText("Вера", { selector: "td" }).closest("tr")!;
+    fireEvent.click(within(row).getByRole("button", { name: "Копировать ссылку на опрос «Вера»" }));
+    expect(writeText).toHaveBeenLastCalledWith(`${window.location.origin}/blizkie`);
+    fireEvent.click(within(row).getByRole("button", { name: "Копировать пароль опроса «Вера»" }));
+    expect(writeText).toHaveBeenLastCalledWith("vera-pass");
+    expect(await screen.findByText("Пароль скопирован.")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Копировать пароль" }));
+    expect(writeText).toHaveBeenLastCalledWith("oleg-pass");
+  });
+
+  it("shows an error when deleting fails", async () => {
+    fns.deleteObsSurveyFn.mockResolvedValueOnce({ ok: false, error: "not_found" });
+    render(<Page />);
+    await screen.findByText("Настройки: Олег");
+    const row = screen.getByText("Вера", { selector: "td" }).closest("tr")!;
+    fireEvent.click(within(row).getByRole("button", { name: "Удалить опрос «Вера»" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Удалить" }));
+    expect(await screen.findByText("Этот опрос уже удалён.")).toBeTruthy();
   });
 
   it("opens one person and deletes the answer after confirmation", async () => {
