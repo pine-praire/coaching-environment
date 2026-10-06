@@ -15,12 +15,14 @@ import { Route as ProcrastinationRouteImport } from './routes/procrastination'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as CommRouteImport } from './routes/comm'
+import { Route as BlizkieRouteImport } from './routes/blizkie'
 import { Route as BingoRouteImport } from './routes/bingo'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ResultIdRouteImport } from './routes/result.$id'
 import { Route as AdminCommunicationRouteImport } from './routes/admin_.communication'
+import { Route as AdminBlizkieRouteImport } from './routes/admin_.blizkie'
 
 const TestRoute = TestRouteImport.update({
   id: '/test',
@@ -50,6 +52,11 @@ const DashboardRoute = DashboardRouteImport.update({
 const CommRoute = CommRouteImport.update({
   id: '/comm',
   path: '/comm',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BlizkieRoute = BlizkieRouteImport.update({
+  id: '/blizkie',
+  path: '/blizkie',
   getParentRoute: () => rootRouteImport,
 } as any)
 const BingoRoute = BingoRouteImport.update({
@@ -82,18 +89,25 @@ const AdminCommunicationRoute = AdminCommunicationRouteImport.update({
   path: '/admin/communication',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminBlizkieRoute = AdminBlizkieRouteImport.update({
+  id: '/admin_/blizkie',
+  path: '/admin/blizkie',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/auth': typeof AuthRoute
   '/bingo': typeof BingoRoute
+  '/blizkie': typeof BlizkieRoute
   '/comm': typeof CommRoute
   '/dashboard': typeof DashboardRoute
   '/privacy': typeof PrivacyRoute
   '/procrastination': typeof ProcrastinationRoute
   '/reset-password': typeof ResetPasswordRoute
   '/test': typeof TestRoute
+  '/admin/blizkie': typeof AdminBlizkieRoute
   '/admin/communication': typeof AdminCommunicationRoute
   '/result/$id': typeof ResultIdRoute
 }
@@ -102,12 +116,14 @@ export interface FileRoutesByTo {
   '/admin': typeof AdminRoute
   '/auth': typeof AuthRoute
   '/bingo': typeof BingoRoute
+  '/blizkie': typeof BlizkieRoute
   '/comm': typeof CommRoute
   '/dashboard': typeof DashboardRoute
   '/privacy': typeof PrivacyRoute
   '/procrastination': typeof ProcrastinationRoute
   '/reset-password': typeof ResetPasswordRoute
   '/test': typeof TestRoute
+  '/admin/blizkie': typeof AdminBlizkieRoute
   '/admin/communication': typeof AdminCommunicationRoute
   '/result/$id': typeof ResultIdRoute
 }
@@ -117,12 +133,14 @@ export interface FileRoutesById {
   '/admin': typeof AdminRoute
   '/auth': typeof AuthRoute
   '/bingo': typeof BingoRoute
+  '/blizkie': typeof BlizkieRoute
   '/comm': typeof CommRoute
   '/dashboard': typeof DashboardRoute
   '/privacy': typeof PrivacyRoute
   '/procrastination': typeof ProcrastinationRoute
   '/reset-password': typeof ResetPasswordRoute
   '/test': typeof TestRoute
+  '/admin_/blizkie': typeof AdminBlizkieRoute
   '/admin_/communication': typeof AdminCommunicationRoute
   '/result/$id': typeof ResultIdRoute
 }
@@ -133,12 +151,14 @@ export interface FileRouteTypes {
     | '/admin'
     | '/auth'
     | '/bingo'
+    | '/blizkie'
     | '/comm'
     | '/dashboard'
     | '/privacy'
     | '/procrastination'
     | '/reset-password'
     | '/test'
+    | '/admin/blizkie'
     | '/admin/communication'
     | '/result/$id'
   fileRoutesByTo: FileRoutesByTo
@@ -147,12 +167,14 @@ export interface FileRouteTypes {
     | '/admin'
     | '/auth'
     | '/bingo'
+    | '/blizkie'
     | '/comm'
     | '/dashboard'
     | '/privacy'
     | '/procrastination'
     | '/reset-password'
     | '/test'
+    | '/admin/blizkie'
     | '/admin/communication'
     | '/result/$id'
   id:
@@ -161,12 +183,14 @@ export interface FileRouteTypes {
     | '/admin'
     | '/auth'
     | '/bingo'
+    | '/blizkie'
     | '/comm'
     | '/dashboard'
     | '/privacy'
     | '/procrastination'
     | '/reset-password'
     | '/test'
+    | '/admin_/blizkie'
     | '/admin_/communication'
     | '/result/$id'
   fileRoutesById: FileRoutesById
@@ -176,12 +200,14 @@ export interface RootRouteChildren {
   AdminRoute: typeof AdminRoute
   AuthRoute: typeof AuthRoute
   BingoRoute: typeof BingoRoute
+  BlizkieRoute: typeof BlizkieRoute
   CommRoute: typeof CommRoute
   DashboardRoute: typeof DashboardRoute
   PrivacyRoute: typeof PrivacyRoute
   ProcrastinationRoute: typeof ProcrastinationRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   TestRoute: typeof TestRoute
+  AdminBlizkieRoute: typeof AdminBlizkieRoute
   AdminCommunicationRoute: typeof AdminCommunicationRoute
   ResultIdRoute: typeof ResultIdRoute
 }
@@ -230,6 +256,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CommRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/blizkie': {
+      id: '/blizkie'
+      path: '/blizkie'
+      fullPath: '/blizkie'
+      preLoaderRoute: typeof BlizkieRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/bingo': {
       id: '/bingo'
       path: '/bingo'
@@ -272,6 +305,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminCommunicationRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin_/blizkie': {
+      id: '/admin_/blizkie'
+      path: '/admin/blizkie'
+      fullPath: '/admin/blizkie'
+      preLoaderRoute: typeof AdminBlizkieRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -280,12 +320,14 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRoute: AdminRoute,
   AuthRoute: AuthRoute,
   BingoRoute: BingoRoute,
+  BlizkieRoute: BlizkieRoute,
   CommRoute: CommRoute,
   DashboardRoute: DashboardRoute,
   PrivacyRoute: PrivacyRoute,
   ProcrastinationRoute: ProcrastinationRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   TestRoute: TestRoute,
+  AdminBlizkieRoute: AdminBlizkieRoute,
   AdminCommunicationRoute: AdminCommunicationRoute,
   ResultIdRoute: ResultIdRoute,
 }

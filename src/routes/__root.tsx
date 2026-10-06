@@ -42,10 +42,13 @@ export const Route = createRootRoute({
 
 // Анонимный опрос /comm: английский, без входа в Firebase Auth и без баннера cookies.
 const isCommSurvey = (pathname: string) => pathname === "/comm" || pathname.startsWith("/comm/");
+// Опрос близких /blizkie: вход по общему паролю, тоже без Firebase Auth и баннера.
+const isObsSurvey = (pathname: string) =>
+  pathname === "/blizkie" || pathname.startsWith("/blizkie/");
 
 function RootComponent() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  if (isCommSurvey(pathname)) return <Outlet />;
+  if (isCommSurvey(pathname) || isObsSurvey(pathname)) return <Outlet />;
   return (
     <AuthProvider>
       <Outlet />

@@ -72,5 +72,13 @@ service cloud.firestore {
     match /comm_responses/{id} {
       allow read, write: if false;
     }
+
+    // Опрос близких: доступ только через серверные функции (firebase-admin обходит правила).
+    match /obs_config/{id} {
+      allow read, write: if false;
+    }
+    match /obs_responses/{id} {
+      allow read, write: if false;
+    }
   }
 }

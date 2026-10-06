@@ -4,7 +4,16 @@ import { collection, getDocs, doc, setDoc, deleteDoc } from "firebase/firestore"
 import { db } from "@/integrations/firebase/client";
 import { useAuth } from "@/lib/auth";
 import { getVerdict } from "@/lib/apgar";
-import { ChevronDown, ChevronRight, Shield, Users, ClipboardList, TrendingUp, UserCheck, UserX } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronRight,
+  Shield,
+  Users,
+  ClipboardList,
+  TrendingUp,
+  UserCheck,
+  UserX,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/admin")({
@@ -37,8 +46,14 @@ function AdminPage() {
 
   useEffect(() => {
     if (loading || (user && roleLoading)) return;
-    if (!user) { navigate({ to: "/auth", search: { mode: "login" } }); return; }
-    if (!isAdmin) { navigate({ to: "/dashboard" }); return; }
+    if (!user) {
+      navigate({ to: "/auth", search: { mode: "login" } });
+      return;
+    }
+    if (!isAdmin) {
+      navigate({ to: "/dashboard" });
+      return;
+    }
   }, [loading, roleLoading, user, isAdmin, navigate]);
 
   useEffect(() => {
@@ -54,9 +69,7 @@ function AdminPage() {
         ]);
 
         const adminUids = new Set(
-          rolesSnap.docs
-            .filter((d) => d.data().role === "admin")
-            .map((d) => d.id),
+          rolesSnap.docs.filter((d) => d.data().role === "admin").map((d) => d.id),
         );
 
         const userList: AdminUser[] = usersSnap.docs.map((d) => ({
@@ -94,9 +107,7 @@ function AdminPage() {
     } else {
       await setDoc(doc(db, "user_roles", u.id), { role: "admin" });
     }
-    setUsers((prev) =>
-      prev.map((p) => (p.id === u.id ? { ...p, isAdmin: !p.isAdmin } : p)),
-    );
+    setUsers((prev) => prev.map((p) => (p.id === u.id ? { ...p, isAdmin: !p.isAdmin } : p)));
   };
 
   if (loading || roleLoading || !user || !isAdmin) return null;
@@ -122,7 +133,6 @@ function AdminPage() {
   return (
     <div className="min-h-screen px-4 py-12" style={{ background: "var(--gradient-soft)" }}>
       <div className="mx-auto max-w-5xl">
-
         {/* Header */}
         <div className="mb-8 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -140,6 +150,9 @@ function AdminPage() {
           <div className="flex items-center gap-4">
             <Link to="/admin/communication" className="text-sm text-primary hover:underline">
               Опрос Communication Debugger →
+            </Link>
+            <Link to="/admin/blizkie" className="text-sm text-primary hover:underline">
+              Опрос близких →
             </Link>
             <Link to="/dashboard" className="text-sm text-muted-foreground hover:text-foreground">
               ← На главную
@@ -185,7 +198,9 @@ function AdminPage() {
           {fetching ? (
             <div className="px-6 py-8 text-center text-sm text-muted-foreground">Загрузка...</div>
           ) : users.length === 0 ? (
-            <div className="px-6 py-8 text-center text-sm text-muted-foreground">Нет пользователей</div>
+            <div className="px-6 py-8 text-center text-sm text-muted-foreground">
+              Нет пользователей
+            </div>
           ) : (
             <ul>
               {users.map((u) => {
@@ -197,12 +212,17 @@ function AdminPage() {
                   <li key={u.id} className="border-b last:border-0">
                     <div className="flex w-full items-center gap-4 px-6 py-4">
                       {/* Avatar */}
-                      <button onClick={() => toggle(u.id)} className="flex items-center gap-4 flex-1 text-left min-w-0">
+                      <button
+                        onClick={() => toggle(u.id)}
+                        className="flex items-center gap-4 flex-1 text-left min-w-0"
+                      >
                         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent font-semibold text-sm text-primary">
                           {(u.displayName ?? u.email).slice(0, 2).toUpperCase()}
                         </div>
                         <div className="min-w-0 flex-1">
-                          <p className="truncate font-medium leading-tight">{u.displayName ?? "—"}</p>
+                          <p className="truncate font-medium leading-tight">
+                            {u.displayName ?? "—"}
+                          </p>
                           <p className="truncate text-xs text-muted-foreground">{u.email}</p>
                         </div>
                       </button>
@@ -211,12 +231,18 @@ function AdminPage() {
                       <div className="hidden shrink-0 text-right sm:block">
                         <p className="font-medium">{userResults.length}</p>
                         <p className="text-xs text-muted-foreground">
-                          {userResults.length === 1 ? "тест" : userResults.length >= 2 && userResults.length <= 4 ? "теста" : "тестов"}
+                          {userResults.length === 1
+                            ? "тест"
+                            : userResults.length >= 2 && userResults.length <= 4
+                              ? "теста"
+                              : "тестов"}
                         </p>
                       </div>
 
                       {/* Latest score */}
-                      {latest ? <ScoreBadge score={latest.score} /> : (
+                      {latest ? (
+                        <ScoreBadge score={latest.score} />
+                      ) : (
                         <span className="shrink-0 text-xs text-muted-foreground">нет тестов</span>
                       )}
 
@@ -227,12 +253,27 @@ function AdminPage() {
                         className="shrink-0 gap-1.5 text-xs"
                         onClick={() => toggleAdmin(u)}
                       >
-                        {u.isAdmin ? <><UserX className="h-3.5 w-3.5" /> Убрать</> : <><UserCheck className="h-3.5 w-3.5" /> Админ</>}
+                        {u.isAdmin ? (
+                          <>
+                            <UserX className="h-3.5 w-3.5" /> Убрать
+                          </>
+                        ) : (
+                          <>
+                            <UserCheck className="h-3.5 w-3.5" /> Админ
+                          </>
+                        )}
                       </Button>
 
                       {/* Expand chevron */}
-                      <button onClick={() => toggle(u.id)} className="shrink-0 text-muted-foreground">
-                        {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                      <button
+                        onClick={() => toggle(u.id)}
+                        className="shrink-0 text-muted-foreground"
+                      >
+                        {isExpanded ? (
+                          <ChevronDown className="h-4 w-4" />
+                        ) : (
+                          <ChevronRight className="h-4 w-4" />
+                        )}
                       </button>
                     </div>
 
@@ -249,9 +290,17 @@ function AdminPage() {
                             {userResults.map((r) => {
                               const v = getVerdict(r.score);
                               return (
-                                <li key={r.id} className="flex items-center justify-between rounded-lg px-3 py-2 text-sm hover:bg-accent/40">
+                                <li
+                                  key={r.id}
+                                  className="flex items-center justify-between rounded-lg px-3 py-2 text-sm hover:bg-accent/40"
+                                >
                                   <span className="text-muted-foreground">
-                                    {new Date(r.createdAt).toLocaleString("ru-RU", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })}
+                                    {new Date(r.createdAt).toLocaleString("ru-RU", {
+                                      day: "numeric",
+                                      month: "long",
+                                      hour: "2-digit",
+                                      minute: "2-digit",
+                                    })}
                                   </span>
                                   <div className="flex items-center gap-3">
                                     <span className="text-xs text-muted-foreground">{v.short}</span>
@@ -281,7 +330,12 @@ function AdminPage() {
 
 function ScoreBadge({ score, compact = false }: { score: number; compact?: boolean }) {
   const v = getVerdict(score);
-  const color = v.level === "good" ? "var(--success)" : v.level === "warning" ? "var(--warning)" : "var(--destructive)";
+  const color =
+    v.level === "good"
+      ? "var(--success)"
+      : v.level === "warning"
+        ? "var(--warning)"
+        : "var(--destructive)";
   return (
     <span className={`shrink-0 font-bold ${compact ? "text-lg" : "text-2xl"}`} style={{ color }}>
       {score}

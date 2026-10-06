@@ -1,21 +1,8 @@
 // Серверные функции дашборда /admin/communication. Каждая проверяет Firebase ID token и роль admin.
-import { createMiddleware, createServerFn } from "@tanstack/react-start";
-import { getRequestHeader } from "@tanstack/react-start/server";
-import { auth } from "@/integrations/firebase/client";
+import { createServerFn } from "@tanstack/react-start";
 import { commRepo } from "@/server/comm-repo.server";
-import { verifyAdminToken } from "@/server/firebase-admin.server";
 import * as svc from "@/server/comm-service";
-
-const requireAdmin = createMiddleware({ type: "function" })
-  .client(async ({ next }) => {
-    const token = await auth.currentUser?.getIdToken();
-    return next({ headers: token ? { Authorization: `Bearer ${token}` } : {} });
-  })
-  .server(async ({ next }) => {
-    const uid = await verifyAdminToken(getRequestHeader("authorization"));
-    if (!uid) throw new Error("Forbidden");
-    return next();
-  });
+import { requireAdmin } from "./require-admin";
 
 const input = <T>(d: unknown) => (d ?? {}) as T;
 
