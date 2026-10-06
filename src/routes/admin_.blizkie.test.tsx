@@ -175,6 +175,51 @@ describe("/admin/blizkie", () => {
     expect(await screen.findByText("Этот опрос уже удалён.")).toBeTruthy();
   });
 
+  it("analyses all answers by direction with charts", async () => {
+    render(<Page />);
+    await openSurvey("Вера");
+    fireEvent.click(await screen.findByRole("button", { name: "Анализ всех ответов" }));
+    expect(await screen.findByText("Анализ: все ответы")).toBeTruthy();
+    for (const t of ["СДВГ", "РАС", "Депрессия", "Фон"])
+      expect(screen.getByRole("heading", { name: t })).toBeTruthy();
+    expect(screen.getByText(/а не диагноз/)).toBeTruthy();
+    expect(screen.getByText("Ответов: 2. Точки на шкалах — отдельные люди.")).toBeTruthy();
+    // у «Ольги» все ответы «Часто», у второго «Иногда»: точки по людям на шкале СДВГ
+    expect(screen.getByRole("img", { name: /СДВГ, сейчас: .*Ольга .*Без имени №2/ })).toBeTruthy();
+    expect(screen.getAllByText(/Разброс между людьми/).length).toBe(3);
+    fireEvent.click(screen.getByRole("button", { name: "← Назад" }));
+    expect(await screen.findByText("Ответы (2)")).toBeTruthy();
+  });
+
+  it("analyses one answer from its row and from the person card", async () => {
+    render(<Page />);
+    await openSurvey("Вера");
+    await screen.findByText("Ответы (2)");
+    const table = screen.getByText("Респондент").closest("table")!;
+    fireEvent.click(within(table).getAllByRole("button", { name: "Анализ" })[0]);
+    expect(await screen.findByText("Анализ: Ольга")).toBeTruthy();
+    expect(screen.getByText("Один ответ.")).toBeTruthy();
+    expect(screen.queryByText(/Разброс между людьми/)).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "← Назад" }));
+    fireEvent.click(
+      within(await screen.findByText("Респондент").then((e) => e.closest("table")!)).getAllByRole(
+        "button",
+        { name: "Открыть" },
+      )[1],
+    );
+    fireEvent.click(await screen.findByRole("button", { name: "Анализ" }));
+    expect(await screen.findByText("Анализ: Без имени №2")).toBeTruthy();
+    expect(screen.getAllByText("человек не знал её в детстве").length).toBe(2);
+  });
+
+  it("draws answer distributions instead of number tables", async () => {
+    render(<Page />);
+    await openSurvey("Вера");
+    await screen.findByText("Ответы (2)");
+    expect(screen.getAllByRole("img", { name: "Иногда: 1, Часто: 1" }).length).toBeGreaterThan(30);
+    expect(screen.getAllByText("(обратный)").length).toBeGreaterThan(5);
+  });
+
   it("opens one person and deletes the answer after confirmation", async () => {
     render(<Page />);
     await openSurvey("Вера");

@@ -128,6 +128,18 @@
   --sidebar-accent-foreground: oklch(0.26 0.062 216);
   --sidebar-border: oklch(0.91 0.01 213);
   --sidebar-ring: oklch(0.42 0 0);
+
+  /* Графики опроса близких: шкала частоты «Никогда → Почти всегда», один синий тон от светлого
+     к тёмному (проверено валидатором dataviz, ordinal), «Не знаю» — нейтральный серый. */
+  --obs-scale-0: #86b6ef;
+  --obs-scale-1: #5598e7;
+  --obs-scale-2: #2a78d6;
+  --obs-scale-3: #1c5cab;
+  --obs-scale-4: #104281;
+  --obs-unknown: #d6d5d0;
+  --obs-track: #ecebe7;
+  --obs-fill: #2a78d6;
+  --obs-dot: #104281;
 }
 
 .dark {
@@ -181,6 +193,17 @@
   --sidebar-accent-foreground: oklch(0.98 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.83 0.17 73);
+
+  /* Графики опроса близких на тёмном фоне: светлее к большему. */
+  --obs-scale-0: #2a78d6;
+  --obs-scale-1: #5598e7;
+  --obs-scale-2: #86b6ef;
+  --obs-scale-3: #b7d3f6;
+  --obs-scale-4: #e3eefc;
+  --obs-unknown: #5b6b72;
+  --obs-track: oklch(0.36 0.05 213);
+  --obs-fill: #86b6ef;
+  --obs-dot: #e3eefc;
 }
 
 @layer base {

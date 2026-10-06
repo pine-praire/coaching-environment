@@ -2,6 +2,14 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { KeyRound, Link2, Trash2 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
+import { AnalysisView } from "@/components/obs-analysis-view";
+import {
+  AnswerMark,
+  DistributionBar,
+  ScaleAxis,
+  ScaleLegend,
+  ScaleTrack,
+} from "@/components/obs-charts";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -42,6 +50,7 @@ import {
   OPEN_CHILD,
   OPEN_FINAL,
   PLACES,
+  REVERSED,
   SCALE,
   SCALE_CHILD,
   WHEN,
@@ -173,6 +182,8 @@ function ObsDashboard() {
   const [surveyId, setSurveyId] = useState<string | null>(null);
   const [responses, setResponses] = useState<ObsResponse[] | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
+  // Анализ: "all" — все ответы опроса, иначе id одного ответа.
+  const [analysis, setAnalysis] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -205,6 +216,7 @@ function ObsDashboard() {
 
   useEffect(() => {
     setSelected(null);
+    setAnalysis(null);
     if (surveyId) loadResponses(surveyId);
     else setResponses([]);
   }, [surveyId, loadResponses]);
@@ -212,6 +224,7 @@ function ObsDashboard() {
   const survey = surveys?.find((s) => s.id === surveyId) ?? null;
   const list = useMemo(() => numbered(responses ?? []), [responses]);
   const person = list.find((x) => x.a.id === selected);
+  const analysed = analysis === "all" ? list : list.filter(({ a }) => a.id === analysis);
 
   const flash = (m: string) => {
     setNotice(m);
@@ -254,12 +267,22 @@ function ObsDashboard() {
           </div>
         )}
 
-        {person && survey ? (
+        {analysis && survey && analysed.length > 0 ? (
+          <AnalysisView
+            people={analysed.map(({ a, n }) => ({ a, key: a.id, label: respondentLabel(a, n) }))}
+            names={survey.subject}
+            title={
+              analysis === "all" ? "все ответы" : respondentLabel(analysed[0].a, analysed[0].n)
+            }
+            onBack={() => setAnalysis(null)}
+          />
+        ) : person && survey ? (
           <PersonView
             r={person.a}
             n={person.n}
             names={survey.subject}
             onBack={() => setSelected(null)}
+            onAnalyse={() => setAnalysis(person.a.id)}
             onDeleted={async () => {
               setSelected(null);
               await reloadAll();
@@ -304,7 +327,12 @@ function ObsDashboard() {
             )}
             {survey && responses && (
               <>
-                <ResponsesSection list={list} names={survey.subject} onOpen={setSelected} />
+                <ResponsesSection
+                  list={list}
+                  names={survey.subject}
+                  onOpen={setSelected}
+                  onAnalyse={setAnalysis}
+                />
                 {responses.length > 0 && (
                   <>
                     <IndicesSection list={list} />
@@ -738,10 +766,12 @@ function ResponsesSection({
   list,
   names,
   onOpen,
+  onAnalyse,
 }: {
   list: Numbered[];
   names: SubjectNames;
   onOpen: (id: string) => void;
+  onAnalyse: (id: string) => void;
 }) {
   const answers = list.map((x) => x.a);
   return (
@@ -750,6 +780,9 @@ function ResponsesSection({
       aside={
         list.length > 0 && (
           <div className="flex flex-wrap gap-2">
+            <Button size="sm" onClick={() => onAnalyse("all")}>
+              Анализ всех ответов
+            </Button>
             <Button
               size="sm"
               variant="outline"
@@ -801,7 +834,10 @@ function ResponsesSection({
                   <td className="py-2 pr-4">{a.about.years}</td>
                   <td className="py-2 pr-4">{a.about.knewAsChild === "yes" ? "Да" : "Нет"}</td>
                   <td className="py-2 pr-4 whitespace-nowrap">{fmtDate(a.submittedAt)}</td>
-                  <td className="py-2 text-right">
+                  <td className="py-2 text-right whitespace-nowrap">
+                    <Button size="sm" variant="ghost" onClick={() => onAnalyse(a.id)}>
+                      Анализ
+                    </Button>
                     <Button size="sm" variant="ghost" onClick={() => onOpen(a.id)}>
                       Открыть
                     </Button>
@@ -823,44 +859,34 @@ function IndicesSection({ list }: { list: Numbered[] }) {
   const perPerson = list.map(({ a }) => indicesFor(a));
   return (
     <Section title="Индексы">
-      <p className="mb-4 text-xs text-muted-foreground">{INDEX_NOTE}</p>
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead className="text-left text-xs text-muted-foreground">
-            <tr>
-              <th className="py-2 pr-4 font-medium">Индекс</th>
-              <th className="py-2 pr-4 font-medium">Среднее</th>
-              {list.map(({ a, n }) => (
-                <th key={a.id} className="py-2 pr-4 font-medium whitespace-nowrap">
-                  {respondentLabel(a, n)}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {INDICES.map((def, k) => {
-              const avg = indexAverage(answers, def);
-              return (
-                <tr key={def.id} className="border-t">
-                  <td className="py-2 pr-4">{def.title}</td>
-                  <td className="py-2 pr-4 font-semibold tabular-nums">
-                    {fmtIndex(avg.mean)}
-                    {avg.n > 0 && (
-                      <span className="ml-1 text-xs font-normal text-muted-foreground">
-                        n={avg.n}
-                      </span>
-                    )}
-                  </td>
-                  {perPerson.map((vals, i) => (
-                    <td key={list[i].a.id} className="py-2 pr-4 tabular-nums">
-                      {fmtIndex(vals[k].mean)}
-                    </td>
-                  ))}
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+      <p className="mb-4 text-xs text-muted-foreground">
+        {INDEX_NOTE}
+        {list.length > 1 &&
+          " Полоса — среднее, точки — отдельные люди (наведите, чтобы увидеть кто)."}
+      </p>
+      <div className="space-y-3">
+        {INDICES.map((def, k) => {
+          const avg = indexAverage(answers, def);
+          const dots = perPerson.flatMap((vals, i) => {
+            const v = vals[k].mean;
+            const { a, n } = list[i];
+            return v === null ? [] : [{ key: a.id, label: respondentLabel(a, n), value: v }];
+          });
+          return (
+            <div
+              key={def.id}
+              className="grid items-center gap-x-4 gap-y-1 text-sm sm:grid-cols-[16rem_1fr_3rem]"
+            >
+              <span>{def.title}</span>
+              <ScaleTrack mean={avg.mean} dots={dots} label={def.title} />
+              <span className="font-semibold tabular-nums sm:text-right">{fmtIndex(avg.mean)}</span>
+            </div>
+          );
+        })}
+        <div className="grid grid-cols-[1fr] sm:grid-cols-[16rem_1fr_3rem] sm:gap-x-4">
+          <span className="hidden sm:block" />
+          <ScaleAxis />
+        </div>
       </div>
     </Section>
   );
@@ -877,55 +903,43 @@ function ItemTable({
   names: SubjectNames;
   child?: boolean;
 }) {
-  const scale = child ? SCALE_CHILD : SCALE;
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm">
-        <thead className="text-left text-xs text-muted-foreground">
-          <tr>
-            <th className="py-2 pr-4 font-medium">Пункт</th>
-            {scale.map(([v, l]) => (
-              <th key={v} className="py-2 pr-2 text-center font-medium">
-                {l}
-              </th>
-            ))}
-            <th className="py-2 pr-2 text-center font-medium">Среднее</th>
-            {!child && <th className="py-2 text-center font-medium">Появилось в последние годы</th>}
-          </tr>
-        </thead>
-        <tbody>
-          {items.map((i) => {
-            const s = itemSummary(responses, i.id);
-            return (
-              <tr key={i.id} className="border-t align-top">
-                <td className="py-2 pr-4">
-                  <span className="mr-1 text-muted-foreground">{itemLabel(i.id)}.</span>
-                  {fillName(i.text, names)}
-                </td>
-                {scale.map(([v]) => (
-                  <td
-                    key={v}
-                    className={`py-2 pr-2 text-center tabular-nums ${s.counts[v] ? "" : "text-muted-foreground/40"}`}
-                  >
-                    {s.counts[v]}
-                  </td>
-                ))}
-                <td className="py-2 pr-2 text-center font-semibold tabular-nums">
-                  {fmtIndex(s.mean)}
-                </td>
-                {!child && (
-                  <td
-                    className={`py-2 text-center tabular-nums ${s.when.recent ? "font-semibold" : "text-muted-foreground/40"}`}
-                  >
-                    {s.when.recent}
-                  </td>
-                )}
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
+    <ul className="space-y-3">
+      {items.map((i) => {
+        const s = itemSummary(responses, i.id);
+        return (
+          <li
+            key={i.id}
+            className="grid items-center gap-x-4 gap-y-1 text-sm md:grid-cols-[1fr_16rem_6.5rem]"
+          >
+            <span>
+              <span className="mr-1 text-muted-foreground">{itemLabel(i.id)}.</span>
+              {fillName(i.text, names)}
+              {REVERSED.has(i.id) && (
+                <span
+                  className="ml-1 text-xs text-muted-foreground"
+                  title="Обратный пункт: «Почти всегда» здесь означает, что признака нет"
+                >
+                  (обратный)
+                </span>
+              )}
+            </span>
+            <DistributionBar counts={s.counts} child={child} />
+            <span className="text-xs text-muted-foreground md:text-right">
+              <span className="font-semibold tabular-nums text-foreground">{fmtIndex(s.mean)}</span>
+              {!child && s.when.recent > 0 && (
+                <span
+                  className="ml-2"
+                  title="Сколько человек ответили «Появилось в последние годы»"
+                >
+                  недавно: {s.when.recent}
+                </span>
+              )}
+            </span>
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 
@@ -933,9 +947,13 @@ function ItemsSection({ responses, names }: { responses: ObsResponse[]; names: S
   const withChild = responses.filter((r) => r.child);
   return (
     <Section title="Ответы по пунктам">
-      <p className="mb-4 text-xs text-muted-foreground">
-        Число людей, выбравших каждый вариант. Среднее по исходной шкале 0–4 без «Не знаю».
+      <p className="mb-3 text-xs text-muted-foreground">
+        Полоса — доли ответов по пункту (наведите на отрезок, чтобы увидеть число людей). Справа
+        среднее по шкале 0–4 без «Не знаю» и сколько человек ответили «Появилось в последние годы».
       </p>
+      <div className="mb-5">
+        <ScaleLegend />
+      </div>
       {BLOCKS.map((b) => (
         <div key={b.id} className="mb-6">
           <h3 className="mb-2 text-sm font-semibold">
@@ -1028,6 +1046,7 @@ function PersonView(props: {
   n: number;
   names: SubjectNames;
   onBack: () => void;
+  onAnalyse: () => void;
   onDeleted: () => Promise<void>;
   onError: (m: string) => void;
 }) {
@@ -1060,6 +1079,9 @@ function PersonView(props: {
       <div className="mb-6 flex flex-wrap gap-2 print:hidden">
         <Button variant="ghost" size="sm" onClick={props.onBack}>
           ← Все ответы
+        </Button>
+        <Button size="sm" onClick={props.onAnalyse}>
+          Анализ
         </Button>
         <Button
           variant="outline"
@@ -1123,17 +1145,28 @@ function PersonView(props: {
 
         <h3 className="mb-1 font-semibold">Индексы</h3>
         <p className="mb-2 text-xs text-muted-foreground">{INDEX_NOTE}</p>
-        <div className="mb-6">
+        <div className="mb-6 space-y-3">
           {INDICES.map((def, k) =>
             def.child && !r.child ? null : (
-              <Answer
+              <div
                 key={def.id}
-                label={def.title}
-                value={fmtIndex(vals[k].mean)}
-                extra={`учтено ${vals[k].answered} из ${vals[k].total}`}
-              />
+                className="grid items-center gap-x-4 gap-y-1 text-sm sm:grid-cols-[16rem_1fr_5.5rem] break-inside-avoid"
+              >
+                <span>{def.title}</span>
+                <ScaleTrack mean={vals[k].mean} label={def.title} />
+                <span className="sm:text-right">
+                  <span className="font-semibold tabular-nums">{fmtIndex(vals[k].mean)}</span>
+                  <span className="ml-1 text-xs text-muted-foreground">
+                    {vals[k].answered}/{vals[k].total}
+                  </span>
+                </span>
+              </div>
             ),
           )}
+          <div className="grid grid-cols-[1fr] sm:grid-cols-[16rem_1fr_5.5rem] sm:gap-x-4">
+            <span className="hidden sm:block" />
+            <ScaleAxis />
+          </div>
         </div>
 
         {BLOCKS.map((b) => (
@@ -1147,7 +1180,7 @@ function PersonView(props: {
                 <Answer
                   key={i.id}
                   label={`${itemLabel(i.id)}. ${t(i.text)}`}
-                  value={SCALE_LABEL[s?.v]}
+                  value={<AnswerMark v={s?.v} label={SCALE_LABEL[s?.v]} />}
                   extra={s?.when ? WHEN_LABEL[s.when] : undefined}
                 />
               );
@@ -1172,7 +1205,12 @@ function PersonView(props: {
                   <Answer
                     key={i.id}
                     label={`${itemLabel(i.id)}. ${t(i.text)}`}
-                    value={SCALE_CHILD_LABEL[r.child!.scale[i.id]?.v]}
+                    value={
+                      <AnswerMark
+                        v={r.child!.scale[i.id]?.v}
+                        label={SCALE_CHILD_LABEL[r.child!.scale[i.id]?.v]}
+                      />
+                    }
                   />
                 ))}
               </div>

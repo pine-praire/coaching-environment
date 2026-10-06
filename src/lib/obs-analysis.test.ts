@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  DOMAINS,
+  analyseDomain,
+  levelLabel,
   indexAverage,
   indexValue,
   itemScore,
@@ -88,5 +91,51 @@ describe("labels", () => {
     const earlier = obsAnswer({ name: "Ольга" }, "2026-10-01T00:00:00Z");
     const list = numbered([later, earlier]);
     expect(list.map(({ a, n }) => respondentLabel(a, n))).toEqual(["Ольга", "Без имени №2"]);
+  });
+});
+
+describe("analyseDomain", () => {
+  const dom = (id: string) => DOMAINS.find((d) => d.id === id)!;
+  const person = (a: ReturnType<typeof obsAnswer>, key: string) => ({ a, key, label: key });
+
+  it("averages the domain items per person and across people", () => {
+    const high = obsAnswer({ v: "almost_always", child: true });
+    const low = obsAnswer({ v: "never" });
+    const r = analyseDomain([person(high, "a"), person(low, "b")], dom("adhd"));
+    // СДВГ сейчас: 10 пунктов, B1 и B8 обратные → у «a» (8·4 + 2·0) / 10 = 3,2, у «b» 0,8
+    expect(r.now.people.map((p) => p.value)).toEqual([3.2, 0.8]);
+    expect(r.now.mean).toBeCloseTo(2);
+    // детство только у «a»: Z6 Z11 Z12 Z13 = 4, Z14 обратный = 0 → 3,2
+    expect(r.child.people).toEqual([{ key: "a", label: "a", value: 3.2 }]);
+  });
+
+  it("counts onset only for frequent straight items", () => {
+    const a = obsAnswer({ v: "often" });
+    a.scale.B2 = { v: "often", when: "always" };
+    a.scale.B3 = { v: "almost_always", when: "recent" };
+    a.scale.B1 = { v: "often", when: "recent" }; // обратный пункт — не считается
+    const r = analyseDomain([person(a, "a")], dom("adhd"));
+    expect(r.onset.always).toBe(1);
+    expect(r.onset.recent).toBe(1);
+    // остальные 6 прямых пунктов СДВГ отмечены «Часто» без ответа «с какого времени»
+    expect(r.onset.none).toBe(6);
+  });
+
+  it("lists the strongest items at «often» or above", () => {
+    const a = obsAnswer({ v: "sometimes" });
+    a.scale.V2 = { v: "almost_always", when: null };
+    a.scale.V3 = { v: "often", when: null };
+    const r = analyseDomain([person(a, "a")], dom("depression"));
+    expect(r.top).toEqual([
+      { id: "V2", mean: 4 },
+      { id: "V3", mean: 3 },
+    ]);
+    expect(r.child.mean).toBeNull();
+  });
+
+  it("names the nearest scale level", () => {
+    expect(levelLabel(0.4)).toBe("Никогда");
+    expect(levelLabel(2.6)).toBe("Часто");
+    expect(levelLabel(3.9)).toBe("Почти всегда");
   });
 });
