@@ -3,7 +3,8 @@ import { buildAllCsv, buildPersonCsv, buildSummaryCsv, toCsv } from "./obs-csv";
 import { ADULT_ITEMS, CHILD_ITEMS } from "./obs-survey";
 import { obsAnswer } from "@/test/obs-fixtures";
 
-const NAMES = { nom: "Вера", acc: "Веру", dat: "Вере" };
+const NAMES = { nom: "Вера", acc: "Веру", dat: "Вере", gender: "f" as const };
+const OLEG = { nom: "Олег", acc: "Олега", dat: "Олегу", gender: "m" as const };
 
 describe("toCsv", () => {
   it("quotes cells and neutralises formulas in text", () => {
@@ -30,7 +31,7 @@ describe("buildAllCsv", () => {
 
 describe("buildSummaryCsv", () => {
   it("has one row per scale item", () => {
-    const csv = buildSummaryCsv([obsAnswer(), obsAnswer({ v: "never" })]);
+    const csv = buildSummaryCsv([obsAnswer(), obsAnswer({ v: "never" })], NAMES);
     expect(csv.split("\n")).toHaveLength(1 + ADULT_ITEMS.length + CHILD_ITEMS.length);
     expect(csv).toContain('"А1","Легко заводит разговор с незнакомыми людьми.","2","1","0","1"');
   });
@@ -43,5 +44,12 @@ describe("buildPersonCsv", () => {
     expect(csv).toContain('"А1. Легко заводит разговор с незнакомыми людьми.","Иногда",""');
     expect(csv).not.toContain("Блок Ж");
     expect(buildPersonCsv(obsAnswer({ child: true }), 1, NAMES)).toContain("Блок Ж");
+  });
+
+  it("uses the masculine forms for a man", () => {
+    const csv = buildPersonCsv(obsAnswer({ child: true }), 1, OLEG);
+    expect(csv).toContain("Где вы его чаще всего видите?");
+    expect(csv).toContain("Был весёлым, жизнерадостным мальчиком.");
+    expect(csv).not.toMatch(/\[|\]/);
   });
 });

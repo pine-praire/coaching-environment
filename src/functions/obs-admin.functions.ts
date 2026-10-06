@@ -6,20 +6,37 @@ import { requireAdmin } from "./require-admin";
 
 const input = <T>(d: unknown) => (d ?? {}) as T;
 
-export const getObsSettingsFn = createServerFn({ method: "POST" })
+export const listObsSurveysFn = createServerFn({ method: "POST" })
   .middleware([requireAdmin])
-  .handler(() => svc.getSettings(obsRepo()));
+  .handler(() => svc.listSurveys(obsRepo()));
 
-export const updateObsSettingsFn = createServerFn({ method: "POST" })
+export const createObsSurveyFn = createServerFn({ method: "POST" })
   .middleware([requireAdmin])
-  .inputValidator((d: unknown) => input<{ names?: unknown; password?: unknown; open?: unknown }>(d))
+  .inputValidator((d: unknown) => input<{ subject?: unknown; password?: unknown }>(d))
+  .handler(({ data }) => svc.createSurvey(obsRepo(), data.subject, data.password));
+
+export const updateObsSurveyFn = createServerFn({ method: "POST" })
+  .middleware([requireAdmin])
+  .inputValidator((d: unknown) =>
+    input<{ surveyId?: unknown; subject?: unknown; password?: unknown; open?: unknown }>(d),
+  )
   .handler(({ data }) =>
-    svc.updateSettings(obsRepo(), { names: data.names, password: data.password, open: data.open }),
+    svc.updateSurvey(obsRepo(), data.surveyId, {
+      subject: data.subject,
+      password: data.password,
+      open: data.open,
+    }),
   );
+
+export const deleteObsSurveyFn = createServerFn({ method: "POST" })
+  .middleware([requireAdmin])
+  .inputValidator((d: unknown) => input<{ surveyId?: unknown }>(d))
+  .handler(({ data }) => svc.deleteSurvey(obsRepo(), data.surveyId));
 
 export const listObsResponsesFn = createServerFn({ method: "POST" })
   .middleware([requireAdmin])
-  .handler(() => svc.listResponses(obsRepo()));
+  .inputValidator((d: unknown) => input<{ surveyId?: unknown }>(d))
+  .handler(({ data }) => svc.listResponses(obsRepo(), data.surveyId));
 
 export const deleteObsResponseFn = createServerFn({ method: "POST" })
   .middleware([requireAdmin])

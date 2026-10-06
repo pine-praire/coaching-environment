@@ -21,16 +21,17 @@ export const PASSWORD_MIN = 8;
 export const PASSWORD_MAX = 200;
 export const SUBJECT_NAME_MAX = 60;
 
-// Пароль, который вводит участник: проверяется как есть, без нормализации.
-export const passwordInputSchema = z.string().min(1).max(PASSWORD_MAX);
-// Пароль, который задаёт админ.
-export const newPasswordSchema = z.string().min(PASSWORD_MIN).max(PASSWORD_MAX);
+// Пароль, который вводит участник: пробелы по краям отбрасываются, регистр важен.
+export const passwordInputSchema = z.string().max(PASSWORD_MAX).trim().min(1);
+// Пароль, который задаёт админ. Он же определяет опрос, поэтому у каждого опроса свой.
+export const newPasswordSchema = z.string().trim().min(PASSWORD_MIN).max(PASSWORD_MAX);
 
 export const subjectNamesSchema = z
   .object({
     nom: z.string().trim().min(1).max(SUBJECT_NAME_MAX),
     acc: z.string().trim().min(1).max(SUBJECT_NAME_MAX),
     dat: z.string().trim().min(1).max(SUBJECT_NAME_MAX),
+    gender: z.enum(["f", "m"]),
   })
   .strict();
 

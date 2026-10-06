@@ -74,6 +74,10 @@ service cloud.firestore {
     }
 
     // Опрос близких: доступ только через серверные функции (firebase-admin обходит правила).
+    // obs_config — данные первой версии, сервер переносит их в obs_surveys и удаляет.
+    match /obs_surveys/{id} {
+      allow read, write: if false;
+    }
     match /obs_config/{id} {
       allow read, write: if false;
     }

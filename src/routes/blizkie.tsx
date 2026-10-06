@@ -63,6 +63,7 @@ interface Draft {
   open: Record<string, string>;
   child: { ages: string[]; scale: Record<string, { v: string }>; open: Record<string, string> };
   idx: number;
+  surveyId?: string; // опрос, к которому относится черновик
 }
 
 const emptyDraft = (): Draft => ({
@@ -204,6 +205,7 @@ function ObsSurvey() {
   const [idx, setIdx] = useState(0);
   const [password, setPassword] = useState("");
   const [names, setNames] = useState<SubjectNames | null>(null);
+  const [surveyId, setSurveyId] = useState<string | null>(null);
   const [missing, setMissing] = useState<Set<string>>(new Set());
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
@@ -220,8 +222,9 @@ function ObsSurvey() {
   }, []);
 
   useEffect(() => {
-    if (names && idx > 0 && screens(d)[idx] !== "done") saveDraft({ ...d, idx });
-  }, [d, idx, names]);
+    if (names && surveyId && idx > 0 && screens(d)[idx] !== "done")
+      saveDraft({ ...d, idx, surveyId });
+  }, [d, idx, names, surveyId]);
 
   useEffect(() => {
     if (!scrollTo) return;
@@ -262,19 +265,26 @@ function ObsSurvey() {
     }
     setBusy(true);
     setErr("");
-    let res: { ok: boolean; names?: SubjectNames } = { ok: false };
+    let res: { ok: boolean; surveyId?: string; subject?: SubjectNames } = { ok: false };
     try {
       res = await checkObsPasswordFn({ data: { password } });
     } catch {
       res = { ok: false };
     }
     setBusy(false);
-    if (!res.ok || !res.names) {
+    if (!res.ok || !res.subject || !res.surveyId) {
       setErr("Пароль не подошёл. Проверьте раскладку и регистр букв.");
       return;
     }
-    setNames(res.names);
+    setNames(res.subject);
+    setSurveyId(res.surveyId);
     const saved = restored.current;
+    // Черновик от другого опроса (другой пароль на том же устройстве) не подставляем, имя оставляем.
+    if (saved && saved.surveyId !== res.surveyId) {
+      restored.current = null;
+      setD((p) => ({ ...emptyDraft(), name: p.name }));
+      return goTo(1);
+    }
     goTo(saved && saved.idx > 1 ? Math.min(saved.idx, screens(d).length - 2) : 1);
   };
 
@@ -319,7 +329,7 @@ function ObsSurvey() {
     goTo(idx + 1);
   };
 
-  const n = names ?? { nom: "", acc: "", dat: "" };
+  const n: SubjectNames = names ?? { nom: "", acc: "", dat: "", gender: "f" };
   const t = (s: string) => fillName(s, n);
   const showTop = key !== "entry" && key !== "done";
   const total = list.length - 2;
@@ -495,13 +505,18 @@ function ScaleQ({ ctx, item, child }: { ctx: Ctx; item: Item; child?: boolean })
       item.id,
     );
   return (
-    <Q id={item.id} num={itemLabel(item.id) + "."} text={item.text} missing={missing.has(item.id)}>
+    <Q
+      id={item.id}
+      num={itemLabel(item.id) + "."}
+      text={ctx.t(item.text)}
+      missing={missing.has(item.id)}
+    >
       <Chips
         options={child ? SCALE_CHILD : SCALE}
         value={v}
         onChange={(x) => setV(x as string)}
         dimLast
-        label={item.text}
+        label={ctx.t(item.text)}
       />
       {!child && WHEN_TRIGGER.includes(v as ScaleValue) && (
         <div className="follow">
@@ -603,7 +618,7 @@ function IntroScreen({ ctx }: { ctx: Ctx }) {
       <h1>{name ? `Спасибо, ${name}` : "Спасибо"}</h1>
       <p className="lead">
         {t(
-          "Спасибо, что согласились помочь. Мы хотим лучше понять, какая {N} в обычной жизни: как она общается, как справляется с делами, как себя чувствует. Правильных и неправильных ответов нет. Отвечайте по тому, что видели сами, а не по тому, что слышали от других. Если не знаете, выбирайте «Не знаю», это нормальный ответ.",
+          "Спасибо, что согласились помочь. Мы хотим лучше понять, [какая|какой] {N} в обычной жизни: как [она|он] общается, как справляется с делами, как себя чувствует. Правильных и неправильных ответов нет. Отвечайте по тому, что видели сами, а не по тому, что слышали от других. Если не знаете, выбирайте «Не знаю», это нормальный ответ.",
         )}
       </p>
       <p className="lead">
@@ -676,7 +691,7 @@ function AboutScreen({ ctx }: { ctx: Ctx }) {
       <Q
         id="places"
         num="5."
-        text="Где вы её чаще всего видите?"
+        text={t("Где вы [её|его] чаще всего видите?")}
         sub="Можно выбрать несколько"
         missing={missing.has("places")}
       >
@@ -728,7 +743,7 @@ function StartScreen({ ctx }: { ctx: Ctx }) {
       <div className="q">
         <label className="q-text" htmlFor="valued">
           <span className="num">8.</span>
-          За что её ценят окружающие?
+          {t("За что [её|его] ценят окружающие?")}
         </label>
         <textarea
           id="valued"
@@ -782,10 +797,12 @@ function ChildScreen({ ctx, first }: { ctx: Ctx; first?: boolean }) {
     <div className="stack">
       <Header
         eyebrow="Блок Ж"
-        title={t("Какой {N} была в детстве")}
+        title={t("[Какой|Каким] {N} [была|был] в детстве")}
         lead={
           first
-            ? t("Вы отметили, что знали {A} ребёнком. Вспомните, какой она была тогда.")
+            ? t(
+                "Вы отметили, что знали {A} ребёнком. Вспомните, [какой она была|каким он был] тогда.",
+              )
             : undefined
         }
       />
@@ -793,7 +810,7 @@ function ChildScreen({ ctx, first }: { ctx: Ctx; first?: boolean }) {
         <Q
           id="ages"
           num="Ж0."
-          text="В каком возрасте вы её знали?"
+          text={t("В каком возрасте вы [её|его] знали?")}
           sub="Можно выбрать несколько"
           missing={missing.has("ages")}
         >
@@ -828,7 +845,7 @@ function ChildOpenScreen({ ctx }: { ctx: Ctx }) {
         <OpenQ
           key={i.id}
           item={i}
-          text={i.text}
+          text={ctx.t(i.text)}
           value={d.child.open[i.id] ?? ""}
           onChange={(v) =>
             update((p) => ({ ...p, child: { ...p.child, open: { ...p.child.open, [i.id]: v } } }))

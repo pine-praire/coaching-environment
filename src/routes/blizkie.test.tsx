@@ -12,7 +12,8 @@ vi.mock("../styles/obs-survey.css?url", () => ({ default: "" }));
 const { Route } = await import("./blizkie");
 const Page = (Route as unknown as { component: React.ComponentType }).component;
 
-const NAMES = { nom: "Вера", acc: "Веру", dat: "Вере" };
+const NAMES = { nom: "Вера", acc: "Веру", dat: "Вере", gender: "f" as const };
+const OLEG = { nom: "Олег", acc: "Олега", dat: "Олегу", gender: "m" as const };
 const next = () =>
   fireEvent.click(screen.getByRole("button", { name: /Дальше|Начать|Войти|Отправить/ }));
 const pick = (q: string, option: string) =>
@@ -27,7 +28,7 @@ async function login() {
 
 function fillAbout(child: "Да" | "Нет") {
   pick("relation", "Друг или подруга");
-  fireEvent.change(screen.getByLabelText(/Сколько лет вы знаете Веру/), {
+  fireEvent.change(screen.getByLabelText(/Сколько лет вы знаете/), {
     target: { value: "10" },
   });
   pick("frequency", "Раз в неделю");
@@ -46,7 +47,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   Element.prototype.scrollIntoView = vi.fn(); // в jsdom его нет
   localStorage.clear();
-  fns.checkObsPasswordFn.mockResolvedValue({ ok: true, names: NAMES });
+  fns.checkObsPasswordFn.mockResolvedValue({ ok: true, surveyId: "s1", subject: NAMES });
   fns.submitObsResponseFn.mockResolvedValue({ ok: true });
 });
 
@@ -164,5 +165,43 @@ describe("/blizkie", () => {
     next(); // Отправить
     expect(await screen.findByText(/Не получилось отправить ответы/)).toBeTruthy();
     expect(screen.getByRole("button", { name: "Отправить" })).toBeTruthy();
+  });
+
+  it("uses masculine forms for a man", async () => {
+    fns.checkObsPasswordFn.mockResolvedValue({ ok: true, surveyId: "s2", subject: OLEG });
+    render(<Page />);
+    await login();
+    expect(document.body.textContent).toContain("какой Олег в обычной жизни: как он общается");
+    next();
+    expect(screen.getByText("Где вы его чаще всего видите?")).toBeTruthy();
+    fillAbout("Да");
+    next();
+    next();
+    expect(screen.getByText(/выглядит вымотанным, ему нужно побыть одному/)).toBeTruthy();
+    expect(document.body.textContent).not.toMatch(/[[\]|]/);
+  });
+
+  it("drops a draft that belongs to another survey but keeps the name", async () => {
+    const { unmount } = render(<Page />);
+    await login();
+    next();
+    fillAbout("Нет");
+    await waitFor(() => expect(localStorage.getItem("blizkie-draft")).toContain('"s1"'));
+    unmount();
+
+    fns.checkObsPasswordFn.mockResolvedValue({ ok: true, surveyId: "s2", subject: OLEG });
+    render(<Page />);
+    await waitFor(() =>
+      expect((screen.getByLabelText(/Ваше имя/) as HTMLInputElement).value).toBe("Ольга"),
+    );
+    fireEvent.change(screen.getByLabelText("Пароль"), { target: { value: "oleg-pass" } });
+    next();
+    expect(await screen.findByText("Спасибо, Ольга")).toBeTruthy();
+    next();
+    expect(
+      within(document.getElementById("q-relation")!)
+        .getByRole("button", { name: "Друг или подруга" })
+        .getAttribute("aria-pressed"),
+    ).toBe("false");
   });
 });

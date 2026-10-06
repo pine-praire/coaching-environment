@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { newPasswordSchema, payloadSchema, subjectNamesSchema, toStoredAnswer } from "./obs-schema";
 import { obsPayload } from "@/test/obs-fixtures";
+import {
+  ADULT_ITEMS,
+  CHILD_ITEMS,
+  OPEN_CHANGES,
+  OPEN_CHILD,
+  OPEN_FINAL,
+  fillName,
+} from "./obs-survey";
 
 const parse = (p: unknown) => payloadSchema.safeParse(p);
 
@@ -67,9 +75,40 @@ describe("settings schemas", () => {
   it("validates passwords and name forms", () => {
     expect(newPasswordSchema.safeParse("short").success).toBe(false);
     expect(newPasswordSchema.safeParse("long-enough").success).toBe(true);
-    expect(subjectNamesSchema.safeParse({ nom: "Вера", acc: "Веру", dat: "" }).success).toBe(false);
-    expect(subjectNamesSchema.safeParse({ nom: "Вера", acc: "Веру", dat: "Вере" }).success).toBe(
-      true,
+    expect(
+      subjectNamesSchema.safeParse({ nom: "Вера", acc: "Веру", dat: "", gender: "f" }).success,
+    ).toBe(false);
+    expect(
+      subjectNamesSchema.safeParse({ nom: "Вера", acc: "Веру", dat: "Вере", gender: "f" }).success,
+    ).toBe(true);
+  });
+});
+
+describe("fillName", () => {
+  const vera = { nom: "Вера", acc: "Веру", dat: "Вере", gender: "f" as const };
+  const oleg = { nom: "Олег", acc: "Олега", dat: "Олегу", gender: "m" as const };
+
+  it("fills name cases and gendered forms", () => {
+    const text = "[Какой|Каким] {N} [была|был] в детстве? Кем вы приходитесь {D}? Знаете {A}?";
+    expect(fillName(text, vera)).toBe(
+      "Какой Вера была в детстве? Кем вы приходитесь Вере? Знаете Веру?",
     );
+    expect(fillName(text, oleg)).toBe(
+      "Каким Олег был в детстве? Кем вы приходитесь Олегу? Знаете Олега?",
+    );
+  });
+
+  it("leaves no markup in any survey text for either gender", () => {
+    const all = [...ADULT_ITEMS, ...CHILD_ITEMS, ...OPEN_CHANGES, ...OPEN_FINAL, ...OPEN_CHILD];
+    for (const subject of [vera, oleg])
+      for (const i of all) expect(fillName(i.text, subject)).not.toMatch(/[[\]|{}]/);
+  });
+
+  it("keeps the feminine texts exactly as in the prototype", () => {
+    const text = (id: string) => fillName(ADULT_ITEMS.find((i) => i.id === id)!.text, vera);
+    expect(text("A5")).toBe(
+      "После встреч и праздников выглядит вымотанной, ей нужно побыть одной.",
+    );
+    expect(text("V3")).toBe("Говорит о себе плохо: что она неудачница, лишняя, всё портит.");
   });
 });

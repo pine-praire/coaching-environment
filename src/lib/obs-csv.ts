@@ -107,7 +107,7 @@ function questionLegend(names: SubjectNames): Cell[][] {
 }
 
 // Сводка: одна строка на пункт шкалы.
-export function buildSummaryCsv(answers: ObsAnswer[]): string {
+export function buildSummaryCsv(answers: ObsAnswer[], names: SubjectNames): string {
   const head: Cell[] = [
     "Пункт",
     "Текст",
@@ -121,7 +121,7 @@ export function buildSummaryCsv(answers: ObsAnswer[]): string {
     const child = i.id.startsWith("Z");
     return [
       itemLabel(i.id),
-      i.text,
+      fillName(i.text, names),
       s.answered,
       ...SCALE.map(([v]) => s.counts[v]),
       indexText(s.mean),
@@ -141,17 +141,17 @@ export function buildPersonCsv(a: ObsAnswer, n: number, names: SubjectNames): st
     [t("Кем вы приходитесь {D}?"), relationText(a)],
     [t("Сколько лет вы знаете {A}?"), a.about.years],
     ["Как часто вы общаетесь сейчас?", frequencyText(a)],
-    ["Где вы её чаще всего видите?", placesText(a)],
+    [t("Где вы [её|его] чаще всего видите?"), placesText(a)],
     [t("Вы знали {A} в детстве или подростком?"), knewText(a)],
     [t("Опишите {A} тремя словами."), a.start.threeWords],
-    ["За что её ценят окружающие?", a.start.valued],
+    [t("За что [её|его] ценят окружающие?"), a.start.valued],
   ];
   for (const b of BLOCKS) {
     rows.push([`Блок ${itemLabel(b.id)}. ${b.title}`]);
     for (const i of b.items) {
       const s = a.scale[i.id];
       rows.push([
-        `${itemLabel(i.id)}. ${i.text}`,
+        `${itemLabel(i.id)}. ${t(i.text)}`,
         SCALE_LABEL[s?.v] ?? "",
         s?.when ? WHEN_LABEL[s.when] : "",
       ]);
@@ -159,14 +159,14 @@ export function buildPersonCsv(a: ObsAnswer, n: number, names: SubjectNames): st
   }
   for (const i of OPEN_ITEMS) rows.push([`${itemLabel(i.id)}. ${t(i.text)}`, a.open[i.id]]);
   if (a.child) {
-    rows.push(["Блок Ж. Детство"], ["В каком возрасте вы её знали?", agesText(a)]);
+    rows.push(["Блок Ж. Детство"], [t("В каком возрасте вы [её|его] знали?"), agesText(a)]);
     for (const g of CHILD_GROUPS)
       for (const i of g.items)
         rows.push([
-          `${itemLabel(i.id)}. ${i.text}`,
+          `${itemLabel(i.id)}. ${t(i.text)}`,
           SCALE_CHILD_LABEL[a.child.scale[i.id]?.v] ?? "",
         ]);
-    for (const i of OPEN_CHILD) rows.push([`${itemLabel(i.id)}. ${i.text}`, a.child.open[i.id]]);
+    for (const i of OPEN_CHILD) rows.push([`${itemLabel(i.id)}. ${t(i.text)}`, a.child.open[i.id]]);
   }
   rows.push(["Индексы"]);
   indicesFor(a).forEach((x, k) =>

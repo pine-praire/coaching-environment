@@ -1,5 +1,6 @@
 // Логика опроса близких без привязки к Firestore: хранилище передаётся снаружи (в тестах — в памяти).
-import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
+// Опросов может быть несколько (о разных людях); участник попадает в нужный по паролю.
+import { scryptSync, timingSafeEqual } from "node:crypto";
 import {
   newPasswordSchema,
   passwordInputSchema,
@@ -11,31 +12,43 @@ import {
 } from "@/lib/obs-schema";
 import type { SubjectNames } from "@/lib/obs-survey";
 
-export interface ObsConfig {
-  names: SubjectNames | null;
+export interface SurveyRecord {
+  id: string;
+  subject: SubjectNames;
+  // Пароль хранится открытым текстом, чтобы админ мог его видеть и пересылать (как коды в /comm).
+  password: string | null;
+  // Хеш пароля из первой версии (один опрос). Действует, пока админ не задаст новый пароль.
   passwordHash: string | null;
   open: boolean;
+  createdAt: number; // мс, только для сортировки
 }
 
+export type SurveyPatch = Partial<
+  Pick<SurveyRecord, "subject" | "password" | "passwordHash" | "open">
+>;
+
 export interface ObsRepo {
-  getConfig(): Promise<ObsConfig>;
-  updateConfig(patch: Partial<ObsConfig>): Promise<void>;
-  addResponse(doc: ObsAnswer): Promise<void>;
-  listResponses(): Promise<{ id: string; data: ObsAnswer }[]>;
+  listSurveys(): Promise<SurveyRecord[]>;
+  getSurvey(id: string): Promise<SurveyRecord | null>;
+  createSurvey(data: Omit<SurveyRecord, "id" | "createdAt">): Promise<string>;
+  updateSurvey(id: string, patch: SurveyPatch): Promise<void>;
+  deleteSurvey(id: string): Promise<void>; // вместе со всеми ответами
+  countResponses(surveyId: string): Promise<number>;
+  addResponse(surveyId: string, doc: ObsAnswer): Promise<void>;
+  listResponses(surveyId: string): Promise<{ id: string; data: ObsAnswer }[]>;
   deleteResponse(id: string): Promise<boolean>;
 }
 
 // ---------- пароль ----------
 
-const KEY_LEN = 32;
-
-export function hashPassword(password: string): string {
-  const salt = randomBytes(16);
-  const hash = scryptSync(password, salt, KEY_LEN);
-  return `scrypt$${salt.toString("hex")}$${hash.toString("hex")}`;
+function sameText(a: string, b: string): boolean {
+  const x = Buffer.from(a);
+  const y = Buffer.from(b);
+  return x.length === y.length && timingSafeEqual(x, y);
 }
 
-export function verifyPassword(password: string, stored: string | null): boolean {
+// Проверка хеша из первой версии: scrypt$<соль>$<хеш>.
+export function verifyLegacyHash(password: string, stored: string | null): boolean {
   if (!stored) return false;
   const [scheme, saltHex, hashHex] = stored.split("$");
   if (scheme !== "scrypt" || !saltHex || !hashHex) return false;
@@ -44,20 +57,23 @@ export function verifyPassword(password: string, stored: string | null): boolean
   return timingSafeEqual(actual, expected);
 }
 
+function passwordMatches(s: SurveyRecord, password: string): boolean {
+  if (s.password !== null) return sameText(s.password, password);
+  return verifyLegacyHash(password, s.passwordHash);
+}
+
 // ---------- участники ----------
 
-// Опрос доступен, только если он открыт, задан пароль и имя человека.
-async function admit(repo: ObsRepo, rawPassword: unknown): Promise<SubjectNames | null> {
+async function findOpenSurvey(repo: ObsRepo, rawPassword: unknown): Promise<SurveyRecord | null> {
   const pw = passwordInputSchema.safeParse(rawPassword);
   if (!pw.success) return null;
-  const cfg = await repo.getConfig();
-  if (!cfg.open || !cfg.names) return null;
-  return verifyPassword(pw.data, cfg.passwordHash) ? cfg.names : null;
+  const surveys = await repo.listSurveys();
+  return surveys.find((s) => s.open && passwordMatches(s, pw.data)) ?? null;
 }
 
 export async function checkPassword(repo: ObsRepo, rawPassword: unknown) {
-  const names = await admit(repo, rawPassword);
-  return names ? ({ ok: true, names } as const) : ({ ok: false } as const);
+  const s = await findOpenSurvey(repo, rawPassword);
+  return s ? ({ ok: true, surveyId: s.id, subject: s.subject } as const) : ({ ok: false } as const);
 }
 
 export async function submitResponse(
@@ -66,48 +82,102 @@ export async function submitResponse(
   rawPayload: unknown,
   now = new Date(),
 ) {
-  if (!(await admit(repo, rawPassword))) return { ok: false, error: "auth" } as const;
+  const s = await findOpenSurvey(repo, rawPassword);
+  if (!s) return { ok: false, error: "auth" } as const;
   const parsed = payloadSchema.safeParse(rawPayload);
   if (!parsed.success) return { ok: false, error: "invalid" } as const;
-  await repo.addResponse(toStoredAnswer(parsed.data, now));
+  await repo.addResponse(s.id, toStoredAnswer(parsed.data, now));
   return { ok: true } as const;
 }
 
 // ---------- дашборд (вызывающий уже проверен как админ) ----------
 
-export async function getSettings(repo: ObsRepo) {
-  const cfg = await repo.getConfig();
-  return { names: cfg.names, open: cfg.open, hasPassword: !!cfg.passwordHash };
+export interface SurveySummary {
+  id: string;
+  subject: SubjectNames;
+  password: string | null;
+  hasPassword: boolean;
+  open: boolean;
+  count: number;
 }
 
-export type SettingsError = "invalid_names" | "invalid_password" | "invalid_open";
+export async function listSurveys(repo: ObsRepo): Promise<SurveySummary[]> {
+  const surveys = (await repo.listSurveys()).sort((a, b) => b.createdAt - a.createdAt);
+  return Promise.all(
+    surveys.map(async (s) => ({
+      id: s.id,
+      subject: s.subject,
+      password: s.password,
+      hasPassword: s.password !== null || s.passwordHash !== null,
+      open: s.open,
+      count: await repo.countResponses(s.id),
+    })),
+  );
+}
 
-export async function updateSettings(
+export type SurveyError =
+  "invalid_subject" | "invalid_password" | "password_taken" | "invalid_open" | "not_found";
+
+async function passwordTaken(repo: ObsRepo, password: string, exceptId?: string) {
+  return (await repo.listSurveys()).some((s) => s.id !== exceptId && passwordMatches(s, password));
+}
+
+export async function createSurvey(repo: ObsRepo, rawSubject: unknown, rawPassword: unknown) {
+  const subject = subjectNamesSchema.safeParse(rawSubject);
+  if (!subject.success) return { ok: false, error: "invalid_subject" as SurveyError } as const;
+  const pw = newPasswordSchema.safeParse(rawPassword);
+  if (!pw.success) return { ok: false, error: "invalid_password" as SurveyError } as const;
+  if (await passwordTaken(repo, pw.data))
+    return { ok: false, error: "password_taken" as SurveyError } as const;
+  const surveyId = await repo.createSurvey({
+    subject: subject.data,
+    password: pw.data,
+    passwordHash: null,
+    open: true,
+  });
+  return { ok: true, surveyId } as const;
+}
+
+export async function updateSurvey(
   repo: ObsRepo,
-  patch: { names?: unknown; password?: unknown; open?: unknown },
+  surveyId: unknown,
+  patch: { subject?: unknown; password?: unknown; open?: unknown },
 ) {
-  const out: Partial<ObsConfig> = {};
-  if (patch.names !== undefined) {
-    const names = subjectNamesSchema.safeParse(patch.names);
-    if (!names.success) return { ok: false, error: "invalid_names" as SettingsError } as const;
-    out.names = names.data;
+  if (typeof surveyId !== "string" || !(await repo.getSurvey(surveyId)))
+    return { ok: false, error: "not_found" as SurveyError } as const;
+  const out: SurveyPatch = {};
+  if (patch.subject !== undefined) {
+    const subject = subjectNamesSchema.safeParse(patch.subject);
+    if (!subject.success) return { ok: false, error: "invalid_subject" as SurveyError } as const;
+    out.subject = subject.data;
   }
   if (patch.password !== undefined) {
     const pw = newPasswordSchema.safeParse(patch.password);
-    if (!pw.success) return { ok: false, error: "invalid_password" as SettingsError } as const;
-    out.passwordHash = hashPassword(pw.data); // старый пароль перестаёт работать сразу
+    if (!pw.success) return { ok: false, error: "invalid_password" as SurveyError } as const;
+    if (await passwordTaken(repo, pw.data, surveyId))
+      return { ok: false, error: "password_taken" as SurveyError } as const;
+    out.password = pw.data; // старый пароль перестаёт работать сразу
+    out.passwordHash = null;
   }
   if (patch.open !== undefined) {
     if (typeof patch.open !== "boolean")
-      return { ok: false, error: "invalid_open" as SettingsError } as const;
+      return { ok: false, error: "invalid_open" as SurveyError } as const;
     out.open = patch.open;
   }
-  await repo.updateConfig(out);
+  await repo.updateSurvey(surveyId, out);
   return { ok: true } as const;
 }
 
-export async function listResponses(repo: ObsRepo): Promise<ObsResponse[]> {
-  const docs = await repo.listResponses();
+export async function deleteSurvey(repo: ObsRepo, surveyId: unknown) {
+  if (typeof surveyId !== "string" || !(await repo.getSurvey(surveyId)))
+    return { ok: false, error: "not_found" as SurveyError } as const;
+  await repo.deleteSurvey(surveyId);
+  return { ok: true } as const;
+}
+
+export async function listResponses(repo: ObsRepo, surveyId: unknown): Promise<ObsResponse[]> {
+  if (typeof surveyId !== "string" || !(await repo.getSurvey(surveyId))) return [];
+  const docs = await repo.listResponses(surveyId);
   return docs
     .map(({ id, data }) => ({ ...data, id }))
     .sort((a, b) => a.submittedAt.localeCompare(b.submittedAt));

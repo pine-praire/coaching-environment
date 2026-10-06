@@ -50,10 +50,12 @@ import {
   type SubjectNames,
 } from "@/lib/obs-survey";
 import {
+  createObsSurveyFn,
   deleteObsResponseFn,
-  getObsSettingsFn,
+  deleteObsSurveyFn,
   listObsResponsesFn,
-  updateObsSettingsFn,
+  listObsSurveysFn,
+  updateObsSurveyFn,
 } from "@/functions/obs-admin.functions";
 
 export const Route = createFileRoute("/admin_/blizkie")({
@@ -63,18 +65,28 @@ export const Route = createFileRoute("/admin_/blizkie")({
   component: ObsDashboardPage,
 });
 
-interface Settings {
-  names: SubjectNames | null;
-  open: boolean;
+interface Survey {
+  id: string;
+  subject: SubjectNames;
+  password: string | null;
   hasPassword: boolean;
+  open: boolean;
+  count: number;
 }
 
-const NO_NAMES: SubjectNames = { nom: "…", acc: "…", dat: "…" };
+const EMPTY_SUBJECT: SubjectNames = { nom: "", acc: "", dat: "", gender: "f" };
 const SCALE_LABEL = Object.fromEntries(SCALE) as Record<string, string>;
 const SCALE_CHILD_LABEL = Object.fromEntries(SCALE_CHILD) as Record<string, string>;
 const WHEN_LABEL = Object.fromEntries(WHEN) as Record<string, string>;
 const PLACE_LABEL = Object.fromEntries(PLACES) as Record<string, string>;
 const AGE_LABEL = Object.fromEntries(AGES) as Record<string, string>;
+
+const SURVEY_ERROR: Record<string, string> = {
+  invalid_subject: "Заполните все три формы имени.",
+  invalid_password: `Пароль должен быть не короче ${PASSWORD_MIN} символов.`,
+  password_taken: "Такой пароль уже у другого опроса: по паролю участник попадает в свой опрос.",
+  not_found: "Этот опрос уже удалён.",
+};
 
 function download(filename: string, csv: string) {
   const url = URL.createObjectURL(new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" }));
@@ -88,6 +100,20 @@ function download(filename: string, csv: string) {
 }
 
 const today = () => new Date().toISOString().slice(0, 10);
+const surveyLink = () =>
+  typeof window !== "undefined" ? `${window.location.origin}/blizkie` : "/blizkie";
+
+// Латиница для имени файла: «Мария» → «mariya».
+const TRANSLIT: Record<string, string> = Object.fromEntries(
+  "а:a б:b в:v г:g д:d е:e ё:e ж:zh з:z и:i й:y к:k л:l м:m н:n о:o п:p р:r с:s т:t у:u ф:f х:h ц:ts ч:ch ш:sh щ:sch ъ: ы:y ь: э:e ю:yu я:ya"
+    .split(" ")
+    .map((p) => p.split(":")),
+);
+const fileSlug = (s: SubjectNames) =>
+  [...s.nom.toLowerCase()]
+    .map((c) => TRANSLIT[c] ?? c)
+    .join("")
+    .replace(/[^a-z0-9]+/g, "-") || "opros";
 
 function ObsDashboardPage() {
   const { user, loading, isAdmin, roleLoading } = useAuth();
@@ -129,35 +155,71 @@ function Section({
   );
 }
 
+function copyText(text: string, flash: (m: string) => void, done: string) {
+  // Если буфер обмена недоступен, показываем текст, чтобы его можно было переписать.
+  try {
+    navigator.clipboard.writeText(text).then(
+      () => flash(done),
+      () => flash(text),
+    );
+  } catch {
+    flash(text);
+  }
+}
+
 function ObsDashboard() {
-  const [settings, setSettings] = useState<Settings | null>(null);
+  const [surveys, setSurveys] = useState<Survey[] | null>(null);
+  const [surveyId, setSurveyId] = useState<string | null>(null);
   const [responses, setResponses] = useState<ObsResponse[] | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
+  const loadSurveys = useCallback(async (select?: string) => {
     try {
-      const [s, r] = await Promise.all([getObsSettingsFn(), listObsResponsesFn()]);
-      setSettings(s);
-      setResponses(r);
+      const list = await listObsSurveysFn();
+      setSurveys(list);
+      setSurveyId(
+        (cur) => select ?? (cur && list.some((s) => s.id === cur) ? cur : (list[0]?.id ?? null)),
+      );
       setError(null);
     } catch {
-      setError("Не удалось загрузить данные опроса.");
+      setError("Не удалось загрузить опросы.");
+    }
+  }, []);
+
+  const loadResponses = useCallback(async (id: string) => {
+    setResponses(null);
+    try {
+      setResponses(await listObsResponsesFn({ data: { surveyId: id } }));
+    } catch {
+      setError("Не удалось загрузить ответы.");
     }
   }, []);
 
   useEffect(() => {
-    load();
-  }, [load]);
+    loadSurveys();
+  }, [loadSurveys]);
 
-  const names = settings?.names ?? NO_NAMES;
+  useEffect(() => {
+    setSelected(null);
+    if (surveyId) loadResponses(surveyId);
+    else setResponses([]);
+  }, [surveyId, loadResponses]);
+
+  const survey = surveys?.find((s) => s.id === surveyId) ?? null;
   const list = useMemo(() => numbered(responses ?? []), [responses]);
   const person = list.find((x) => x.a.id === selected);
 
   const flash = (m: string) => {
     setNotice(m);
     setTimeout(() => setNotice((cur) => (cur === m ? null : cur)), 3000);
+  };
+
+  const reloadAll = async () => {
+    await loadSurveys();
+    if (surveyId) await loadResponses(surveyId);
   };
 
   return (
@@ -167,7 +229,7 @@ function ObsDashboard() {
           <div>
             <h1 className="text-2xl font-bold">Опрос близких</h1>
             <p className="text-sm text-muted-foreground">
-              {settings?.names ? `О ком: ${settings.names.nom}` : "Имя человека не задано"}
+              {survey ? `О ком: ${survey.subject.nom}` : "Опрос не выбран"}
             </p>
           </div>
           <Link to="/admin" className="text-sm text-muted-foreground hover:text-foreground">
@@ -186,30 +248,63 @@ function ObsDashboard() {
           </div>
         )}
 
-        {person ? (
+        {person && survey ? (
           <PersonView
             r={person.a}
             n={person.n}
-            names={names}
+            names={survey.subject}
             onBack={() => setSelected(null)}
             onDeleted={async () => {
               setSelected(null);
-              await load();
+              await reloadAll();
               flash("Ответ удалён.");
             }}
             onError={setError}
           />
         ) : (
           <>
-            {settings && <SettingsSection settings={settings} onSaved={load} flash={flash} />}
-            {responses && (
+            {surveys && (
+              <SurveyList
+                surveys={surveys}
+                selectedId={surveyId}
+                onSelect={(id) => {
+                  setCreating(false);
+                  setSurveyId(id);
+                }}
+                onNew={() => setCreating((v) => !v)}
+                flash={flash}
+              />
+            )}
+            {creating && (
+              <NewSurveySection
+                onCancel={() => setCreating(false)}
+                onCreated={async (id) => {
+                  setCreating(false);
+                  await loadSurveys(id);
+                  flash("Опрос создан и открыт. Скопируйте ссылку и пароль для участников.");
+                }}
+              />
+            )}
+            {survey && (
+              <SurveySettings
+                key={survey.id}
+                survey={survey}
+                onSaved={() => loadSurveys()}
+                onDeleted={async (name) => {
+                  await loadSurveys();
+                  flash(`Опрос о человеке «${name}» удалён вместе с ответами.`);
+                }}
+                flash={flash}
+              />
+            )}
+            {survey && responses && (
               <>
-                <ResponsesSection list={list} names={names} onOpen={setSelected} />
+                <ResponsesSection list={list} names={survey.subject} onOpen={setSelected} />
                 {responses.length > 0 && (
                   <>
                     <IndicesSection list={list} />
-                    <ItemsSection responses={responses} />
-                    <OpenSection list={list} names={names} />
+                    <ItemsSection responses={responses} names={survey.subject} />
+                    <OpenSection list={list} names={survey.subject} />
                   </>
                 )}
               </>
@@ -221,41 +316,217 @@ function ObsDashboard() {
   );
 }
 
-// ---------- настройки ----------
+// ---------- опросы ----------
 
-function SettingsSection(props: {
-  settings: Settings;
-  onSaved: () => Promise<void>;
+function SurveyList(props: {
+  surveys: Survey[];
+  selectedId: string | null;
+  onSelect: (id: string) => void;
+  onNew: () => void;
   flash: (m: string) => void;
 }) {
-  const { settings, onSaved, flash } = props;
-  const [names, setNames] = useState<SubjectNames>(settings.names ?? { nom: "", acc: "", dat: "" });
+  return (
+    <Section
+      title="Опросы"
+      aside={
+        <Button size="sm" onClick={props.onNew}>
+          Новый опрос
+        </Button>
+      }
+    >
+      {props.surveys.length === 0 ? (
+        <p className="text-sm text-muted-foreground">
+          Опросов пока нет. Создайте первый: укажите, о ком он, и задайте пароль.
+        </p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="text-left text-xs text-muted-foreground">
+              <tr>
+                <th className="py-2 pr-4 font-medium">О ком</th>
+                <th className="py-2 pr-4 font-medium">Пароль</th>
+                <th className="py-2 pr-4 font-medium">Статус</th>
+                <th className="py-2 pr-4 font-medium">Ответов</th>
+                <th />
+              </tr>
+            </thead>
+            <tbody>
+              {props.surveys.map((s) => (
+                <tr
+                  key={s.id}
+                  className={`border-t ${s.id === props.selectedId ? "bg-accent/60" : ""}`}
+                >
+                  <td className="py-2 pr-4 font-medium">{s.subject.nom}</td>
+                  <td className="py-2 pr-4 font-mono">
+                    {s.password ?? (
+                      <span className="font-sans text-muted-foreground">
+                        {s.hasPassword ? "старый, задайте новый" : "не задан"}
+                      </span>
+                    )}
+                  </td>
+                  <td className="py-2 pr-4">{s.open ? "Открыт" : "Закрыт"}</td>
+                  <td className="py-2 pr-4 tabular-nums">{s.count}</td>
+                  <td className="py-2 text-right">
+                    {s.id === props.selectedId ? (
+                      <span className="px-3 text-xs text-muted-foreground">выбран</span>
+                    ) : (
+                      <Button size="sm" variant="ghost" onClick={() => props.onSelect(s.id)}>
+                        Открыть
+                      </Button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </Section>
+  );
+}
+
+function SubjectFields({
+  value,
+  onChange,
+  idPrefix,
+}: {
+  value: SubjectNames;
+  onChange: (v: SubjectNames) => void;
+  idPrefix: string;
+}) {
+  const female = value.gender === "f";
+  return (
+    <div className="space-y-3">
+      <p className="text-sm font-medium">О ком опрос</p>
+      <div className="flex gap-2" role="radiogroup" aria-label="Род">
+        {(
+          [
+            ["f", "Женщина"],
+            ["m", "Мужчина"],
+          ] as const
+        ).map(([g, label]) => (
+          <Button
+            key={g}
+            type="button"
+            size="sm"
+            role="radio"
+            aria-checked={value.gender === g}
+            variant={value.gender === g ? "default" : "outline"}
+            onClick={() => onChange({ ...value, gender: g })}
+          >
+            {label}
+          </Button>
+        ))}
+      </div>
+      {(
+        [
+          ["nom", female ? "Кто? (Мария)" : "Кто? (Иван)"],
+          ["acc", female ? "Кого? (Марию)" : "Кого? (Ивана)"],
+          ["dat", female ? "Кому? (Марии)" : "Кому? (Ивану)"],
+        ] as const
+      ).map(([k, label]) => (
+        <div key={k} className="space-y-1">
+          <Label htmlFor={`${idPrefix}-${k}`} className="text-xs text-muted-foreground">
+            {label}
+          </Label>
+          <Input
+            id={`${idPrefix}-${k}`}
+            value={value[k]}
+            maxLength={60}
+            onChange={(e) => onChange({ ...value, [k]: e.target.value })}
+          />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function NewSurveySection(props: {
+  onCancel: () => void;
+  onCreated: (id: string) => Promise<void>;
+}) {
+  const [subject, setSubject] = useState<SubjectNames>(EMPTY_SUBJECT);
   const [password, setPassword] = useState("");
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const ready = !!settings.names && settings.hasPassword;
+
+  const create = async () => {
+    setBusy(true);
+    setErr(null);
+    try {
+      const res = await createObsSurveyFn({ data: { subject, password } });
+      if (!res.ok) return setErr(SURVEY_ERROR[res.error] ?? "Не удалось создать опрос.");
+      await props.onCreated(res.surveyId);
+    } catch {
+      setErr("Не удалось создать опрос.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Section title="Новый опрос">
+      <form
+        className="grid gap-6 md:grid-cols-2"
+        onSubmit={(e) => {
+          e.preventDefault();
+          create();
+        }}
+      >
+        <SubjectFields value={subject} onChange={setSubject} idPrefix="new" />
+        <div className="space-y-3">
+          <Label htmlFor="new-password" className="text-sm font-medium">
+            Пароль для участников
+          </Label>
+          <Input
+            id="new-password"
+            autoComplete="off"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+          <p className="text-xs text-muted-foreground">
+            Не короче {PASSWORD_MIN} символов, у каждого опроса свой: по паролю участник попадает в
+            нужный опрос. Пароль будет виден здесь, в админке.
+          </p>
+          <div className="flex gap-2 pt-2">
+            <Button type="submit" size="sm" disabled={busy}>
+              Создать опрос
+            </Button>
+            <Button type="button" size="sm" variant="ghost" onClick={props.onCancel}>
+              Отмена
+            </Button>
+          </div>
+          {err && <p className="text-sm text-destructive">{err}</p>}
+        </div>
+      </form>
+    </Section>
+  );
+}
+
+function SurveySettings(props: {
+  survey: Survey;
+  onSaved: () => Promise<void>;
+  onDeleted: (name: string) => Promise<void>;
+  flash: (m: string) => void;
+}) {
+  const { survey, onSaved, flash } = props;
+  const [subject, setSubject] = useState<SubjectNames>(survey.subject);
+  const [password, setPassword] = useState(survey.password ?? "");
+  const [err, setErr] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const link = surveyLink();
 
   const save = async (
-    patch: { names?: SubjectNames; password?: string; open?: boolean },
+    patch: { subject?: SubjectNames; password?: string; open?: boolean },
     done: string,
   ) => {
     setBusy(true);
     setErr(null);
     try {
-      const res = await updateObsSettingsFn({ data: patch });
-      if (!res.ok) {
-        setErr(
-          res.error === "invalid_password"
-            ? `Пароль должен быть не короче ${PASSWORD_MIN} символов.`
-            : res.error === "invalid_names"
-              ? "Заполните все три формы имени."
-              : "Не удалось сохранить.",
-        );
-        return;
-      }
+      const res = await updateObsSurveyFn({ data: { surveyId: survey.id, ...patch } });
+      if (!res.ok) return setErr(SURVEY_ERROR[res.error] ?? "Не удалось сохранить.");
       await onSaved();
       flash(done);
-      if (patch.password) setPassword("");
     } catch {
       setErr("Не удалось сохранить.");
     } finally {
@@ -263,30 +534,30 @@ function SettingsSection(props: {
     }
   };
 
-  const link = typeof window !== "undefined" ? `${window.location.origin}/blizkie` : "/blizkie";
-  const copyLink = () => {
+  const remove = async () => {
     try {
-      navigator.clipboard.writeText(link).then(
-        () => flash("Ссылка скопирована."),
-        () => flash(link),
-      );
+      const res = await deleteObsSurveyFn({ data: { surveyId: survey.id } });
+      if (!res.ok) return setErr(SURVEY_ERROR[res.error] ?? "Не удалось удалить опрос.");
+      await props.onDeleted(survey.subject.nom);
     } catch {
-      flash(link);
+      setErr("Не удалось удалить опрос.");
     }
   };
 
+  const passwordChanged = password.trim() !== (survey.password ?? "");
+
   return (
     <Section
-      title="Настройки"
+      title={`Настройки: ${survey.subject.nom}`}
       aside={
         <div className="flex items-center gap-3">
           <Label htmlFor="obs-open" className="text-sm">
-            {settings.open ? "Опрос открыт" : "Опрос закрыт"}
+            {survey.open ? "Опрос открыт" : "Опрос закрыт"}
           </Label>
           <Switch
             id="obs-open"
-            checked={settings.open}
-            disabled={busy || (!ready && !settings.open)}
+            checked={survey.open}
+            disabled={busy || (!survey.hasPassword && !survey.open)}
             onCheckedChange={(v) =>
               save(
                 { open: v },
@@ -299,41 +570,17 @@ function SettingsSection(props: {
         </div>
       }
     >
-      {!ready && (
-        <p className="mb-4 text-sm text-muted-foreground">
-          Чтобы открыть опрос, задайте имя человека и пароль.
-        </p>
-      )}
       <div className="grid gap-6 md:grid-cols-2">
         <form
           className="space-y-3"
           onSubmit={(e) => {
             e.preventDefault();
-            save({ names }, "Имя сохранено.");
+            save({ subject }, "Имя сохранено.");
           }}
         >
-          <p className="text-sm font-medium">Имя человека, о котором опрос</p>
-          {(
-            [
-              ["nom", "Кто? (Вера)"],
-              ["acc", "Кого? (Веру)"],
-              ["dat", "Кому? (Вере)"],
-            ] as const
-          ).map(([k, label]) => (
-            <div key={k} className="space-y-1">
-              <Label htmlFor={`name-${k}`} className="text-xs text-muted-foreground">
-                {label}
-              </Label>
-              <Input
-                id={`name-${k}`}
-                value={names[k]}
-                maxLength={60}
-                onChange={(e) => setNames((p) => ({ ...p, [k]: e.target.value }))}
-              />
-            </div>
-          ))}
+          <SubjectFields value={subject} onChange={setSubject} idPrefix="edit" />
           <Button type="submit" size="sm" disabled={busy}>
-            Сохранить имя
+            Сохранить
           </Button>
         </form>
 
@@ -345,28 +592,33 @@ function SettingsSection(props: {
               save({ password }, "Пароль сохранён. Старый больше не работает.");
             }}
           >
-            <p className="text-sm font-medium">
-              Пароль{" "}
-              {settings.hasPassword ? (
-                <span className="text-muted-foreground">(задан)</span>
-              ) : (
-                "(не задан)"
-              )}
-            </p>
-            <Input
-              id="obs-password"
-              aria-label="Новый пароль"
-              autoComplete="off"
-              placeholder="Новый пароль"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
+            <Label htmlFor="obs-password" className="text-sm font-medium">
+              Пароль
+            </Label>
+            <div className="flex gap-2">
+              <Input
+                id="obs-password"
+                autoComplete="off"
+                className="font-mono"
+                placeholder={survey.hasPassword ? "старый пароль, задайте новый" : "не задан"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={!survey.password}
+                onClick={() => copyText(survey.password ?? "", flash, "Пароль скопирован.")}
+              >
+                Копировать
+              </Button>
+            </div>
             <p className="text-xs text-muted-foreground">
-              Не короче {PASSWORD_MIN} символов. Посмотреть пароль потом нельзя, сохраните его у
-              себя.
+              Не короче {PASSWORD_MIN} символов. После смены старый пароль перестаёт работать.
             </p>
-            <Button type="submit" size="sm" disabled={busy || !password}>
-              {settings.hasPassword ? "Сменить пароль" : "Задать пароль"}
+            <Button type="submit" size="sm" disabled={busy || !passwordChanged}>
+              Сменить пароль
             </Button>
           </form>
 
@@ -374,11 +626,54 @@ function SettingsSection(props: {
             <p className="text-sm font-medium">Ссылка для участников</p>
             <div className="flex gap-2">
               <Input readOnly value={link} aria-label="Ссылка на опрос" />
-              <Button type="button" size="sm" variant="outline" onClick={copyLink}>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => copyText(link, flash, "Ссылка скопирована.")}
+              >
                 Копировать
               </Button>
             </div>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={!survey.password}
+              onClick={() =>
+                copyText(
+                  `Ссылка: ${link}\nПароль: ${survey.password}`,
+                  flash,
+                  "Ссылка и пароль скопированы.",
+                )
+              }
+            >
+              Копировать ссылку и пароль
+            </Button>
           </div>
+
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button type="button" size="sm" variant="outline" className="text-destructive">
+                Удалить опрос
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>
+                  Удалить опрос о человеке «{survey.subject.nom}»?
+                </AlertDialogTitle>
+                <AlertDialogDescription>
+                  Вместе с опросом навсегда удалятся все его ответы ({survey.count}). Восстановить
+                  их будет нельзя. Сначала скачайте CSV, если ответы нужны.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Отмена</AlertDialogCancel>
+                <AlertDialogAction onClick={remove}>Удалить</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </div>
       {err && <p className="mt-4 text-sm text-destructive">{err}</p>}
@@ -409,14 +704,24 @@ function ResponsesSection({
             <Button
               size="sm"
               variant="outline"
-              onClick={() => download(`blizkie-otvety-${today()}.csv`, buildAllCsv(answers, names))}
+              onClick={() =>
+                download(
+                  `blizkie-${fileSlug(names)}-otvety-${today()}.csv`,
+                  buildAllCsv(answers, names),
+                )
+              }
             >
               Скачать все ответы (CSV)
             </Button>
             <Button
               size="sm"
               variant="outline"
-              onClick={() => download(`blizkie-svodka-${today()}.csv`, buildSummaryCsv(answers))}
+              onClick={() =>
+                download(
+                  `blizkie-${fileSlug(names)}-svodka-${today()}.csv`,
+                  buildSummaryCsv(answers, names),
+                )
+              }
             >
               Скачать сводку (CSV)
             </Button>
@@ -515,10 +820,12 @@ function IndicesSection({ list }: { list: Numbered[] }) {
 function ItemTable({
   responses,
   items,
+  names,
   child,
 }: {
   responses: ObsResponse[];
   items: Item[];
+  names: SubjectNames;
   child?: boolean;
 }) {
   const scale = child ? SCALE_CHILD : SCALE;
@@ -544,7 +851,7 @@ function ItemTable({
               <tr key={i.id} className="border-t align-top">
                 <td className="py-2 pr-4">
                   <span className="mr-1 text-muted-foreground">{itemLabel(i.id)}.</span>
-                  {i.text}
+                  {fillName(i.text, names)}
                 </td>
                 {scale.map(([v]) => (
                   <td
@@ -573,7 +880,7 @@ function ItemTable({
   );
 }
 
-function ItemsSection({ responses }: { responses: ObsResponse[] }) {
+function ItemsSection({ responses, names }: { responses: ObsResponse[]; names: SubjectNames }) {
   const withChild = responses.filter((r) => r.child);
   return (
     <Section title="Ответы по пунктам">
@@ -585,14 +892,21 @@ function ItemsSection({ responses }: { responses: ObsResponse[] }) {
           <h3 className="mb-2 text-sm font-semibold">
             Блок {BLOCK_LETTER[b.id]}. {b.title}
           </h3>
-          <ItemTable responses={responses} items={b.items} />
+          <ItemTable responses={responses} items={b.items} names={names} />
         </div>
       ))}
       <h3 className="mb-2 text-sm font-semibold">Блок Ж. Детство (ответили: {withChild.length})</h3>
       {withChild.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Никто не отметил, что знал её в детстве.</p>
+        <p className="text-sm text-muted-foreground">
+          {fillName("Никто не отметил, что знал [её|его] в детстве.", names)}
+        </p>
       ) : (
-        <ItemTable responses={withChild} items={CHILD_GROUPS.flatMap((g) => g.items)} child />
+        <ItemTable
+          responses={withChild}
+          items={CHILD_GROUPS.flatMap((g) => g.items)}
+          names={names}
+          child
+        />
       )}
     </Section>
   );
@@ -606,7 +920,7 @@ function OpenSection({ list, names }: { list: Numbered[]; names: SubjectNames })
     get: (a: ObsResponse) => string | null | undefined;
   }[] = [
     { id: "w3", title: t("7. Опишите {A} тремя словами."), get: (a) => a.start.threeWords },
-    { id: "valued", title: "8. За что её ценят окружающие?", get: (a) => a.start.valued },
+    { id: "valued", title: t("8. За что [её|его] ценят окружающие?"), get: (a) => a.start.valued },
     ...[...OPEN_CHANGES, ...OPEN_FINAL].map((i) => ({
       id: i.id,
       title: `${itemLabel(i.id)}. ${t(i.text)}`,
@@ -614,7 +928,7 @@ function OpenSection({ list, names }: { list: Numbered[]; names: SubjectNames })
     })),
     ...OPEN_CHILD.map((i) => ({
       id: i.id,
-      title: `${itemLabel(i.id)}. ${i.text}`,
+      title: `${itemLabel(i.id)}. ${t(i.text)}`,
       get: (a: ObsResponse) => a.child?.open[i.id],
     })),
   ];
@@ -702,7 +1016,10 @@ function PersonView(props: {
           variant="outline"
           size="sm"
           onClick={() =>
-            download(`blizkie-${n}-${r.submittedAt.slice(0, 10)}.csv`, buildPersonCsv(r, n, names))
+            download(
+              `blizkie-${fileSlug(names)}-${n}-${r.submittedAt.slice(0, 10)}.csv`,
+              buildPersonCsv(r, n, names),
+            )
           }
         >
           Скачать CSV
@@ -752,7 +1069,7 @@ function PersonView(props: {
             value={r.child ? `Да: ${r.child.ages.map((x) => AGE_LABEL[x]).join(", ")}` : "Нет"}
           />
           <Answer label={t("Опишите {A} тремя словами")} value={r.start.threeWords} />
-          <Answer label="За что её ценят окружающие" value={r.start.valued} />
+          <Answer label={t("За что [её|его] ценят окружающие")} value={r.start.valued} />
         </div>
 
         <h3 className="mb-1 font-semibold">Индексы</h3>
@@ -780,7 +1097,7 @@ function PersonView(props: {
               return (
                 <Answer
                   key={i.id}
-                  label={`${itemLabel(i.id)}. ${i.text}`}
+                  label={`${itemLabel(i.id)}. ${t(i.text)}`}
                   value={SCALE_LABEL[s?.v]}
                   extra={s?.when ? WHEN_LABEL[s.when] : undefined}
                 />
@@ -805,7 +1122,7 @@ function PersonView(props: {
                 {g.items.map((i) => (
                   <Answer
                     key={i.id}
-                    label={`${itemLabel(i.id)}. ${i.text}`}
+                    label={`${itemLabel(i.id)}. ${t(i.text)}`}
                     value={SCALE_CHILD_LABEL[r.child!.scale[i.id]?.v]}
                   />
                 ))}
